@@ -13,6 +13,13 @@ import {
   type MissionPlan,
 } from './types'
 
+/** CPU time of this test process in ms, so other test files running in parallel don't count. */
+declare const process: { cpuUsage(): { user: number; system: number } }
+const cpuMs = () => {
+  const { user, system } = process.cpuUsage()
+  return (user + system) / 1000
+}
+
 /** Same hardware as data.ts, but nothing ever breaks (MTBF = ∞ → daily failure probability 0). */
 const UNBREAKABLE = Object.fromEntries(
   COMPONENT_KEYS.map((c) => [c, { ...COMPONENTS[c], mtbfDays: Infinity }]),
@@ -126,9 +133,9 @@ describe('sanity: performance', () => {
   it('runs 1,000 runs of a 900-day mission in under 1 s', () => {
     const plan = fakePlan()
     expect(plan.durationDays).toBe(900)
-    runMission(plan, { runs: 50, seed: 1 }) // warm up the JIT
-    const start = performance.now()
+    runMission(plan, { runs: 300, seed: 1 }) // warm up: let V8 finish optimizing before timing
+    const start = cpuMs()
     runMission(plan, { runs: 1000, seed: 1 })
-    expect(performance.now() - start).toBeLessThan(1000)
+    expect(cpuMs() - start).toBeLessThan(1000)
   })
 })

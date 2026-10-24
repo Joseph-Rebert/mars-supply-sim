@@ -73,6 +73,10 @@ export type NutritionTracker = {
   deliver(kg: number, producedDay: number): void
   /** The crew eats `storedKg` from stock (oldest first) and `freshKg` straight from the greenhouse. */
   eat(day: number, storedKg: number, freshKg: number): void
+  /** Last day's intake per crew member and nutrient, flat: index = i × NUTRIENT_KEYS.length + n. */
+  readonly lastIntake: Float64Array
+  /** Daily need, same layout as lastIntake. */
+  readonly needs: Float64Array
   result(): Record<string, Record<NutrientKey, NutrientTally>>
 }
 
@@ -84,6 +88,8 @@ const FRESH_PER_KG = Float64Array.from(
   (k) => GREENHOUSE_PER_KCAL[k] * KCAL_PER_FOOD_KG,
 )
 const DECAY = Float64Array.from(NUTRIENT_KEYS, (k) => DECAY_PER_DAY[k])
+/** Only these nutrients lose content with shelf age (today: vitamin C); the rest scale with mass. */
+const DECAYING = Int32Array.from(NUTRIENT_KEYS.flatMap((_, n) => (DECAY[n] > 0 ? [n] : [])))
 const SUPPLEMENT = Float64Array.from(NUTRIENT_KEYS, (k) =>
   k === 'vitaminDUg' ? VITAMIN_D_SUPPLEMENT_UG_PER_DAY : 0,
 )
@@ -102,6 +108,7 @@ export function createNutritionTracker(crew: readonly CrewMember[]): NutritionTr
   // Tallies, flat: index = crew × N + nutrient.
   const deficit = new Float64Array(crew.length * N)
   const daysShort = new Int32Array(crew.length * N)
+  const lastIntake = new Float64Array(crew.length * N)
   const firstShort = new Int32Array(crew.length * N).fill(-1)
 
   // FIFO batches of stored food; `head` skips emptied batches without shifting the array.
@@ -119,25 +126,32 @@ export function createNutritionTracker(crew: readonly CrewMember[]): NutritionTr
     },
 
     eat(day, storedKg, freshKg) {
-      // decayedKg[n] = stored kg eaten, weighted by how much of nutrient n survived shelf age.
-      decayedKg.fill(0)
+      // Stored kg eaten; for decaying nutrients, weighted by how much survived shelf age.
+      let eatenKg = 0
+      for (let d = 0; d < DECAYING.length; d++) decayedKg[DECAYING[d]] = 0
       let left = storedKg
       while (left > 0 && head < batchKg.length) {
         const kg = Math.min(left, batchKg[head])
         const age = Math.max(0, day - batchDay[head])
-        for (let n = 0; n < N; n++)
-          decayedKg[n] += DECAY[n] === 0 ? kg : kg * Math.exp(-DECAY[n] * age)
+        eatenKg += kg
+        for (let d = 0; d < DECAYING.length; d++) {
+          const n = DECAYING[d]
+          decayedKg[n] += kg * Math.exp(-DECAY[n] * age)
+        }
         batchKg[head] -= kg
         left -= kg
         if (batchKg[head] <= 0) head++
       }
-      for (let n = 0; n < N; n++)
-        intake[n] = freshKg * FRESH_PER_KG[n] + decayedKg[n] * STORED_PER_KG[n]
+      for (let n = 0; n < N; n++) {
+        const stored = DECAY[n] > 0 ? decayedKg[n] : eatenKg
+        intake[n] = freshKg * FRESH_PER_KG[n] + stored * STORED_PER_KG[n]
+      }
 
       for (let i = 0; i < shares.length; i++) {
         for (let n = 0; n < N; n++) {
           const j = i * N + n
-          const short = need[j] - (shares[i] * intake[n] + SUPPLEMENT[n])
+          lastIntake[j] = shares[i] * intake[n] + SUPPLEMENT[n]
+          const short = need[j] - lastIntake[j]
           if (short > need[j] * SHORT_TOLERANCE) {
             deficit[j] += short
             daysShort[j]++
@@ -146,6 +160,9 @@ export function createNutritionTracker(crew: readonly CrewMember[]): NutritionTr
         }
       }
     },
+
+    lastIntake,
+    needs: need,
 
     result() {
       return Object.fromEntries(

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CargoManifest } from './components/CargoManifest'
 import { CrewRoster } from './components/CrewRoster'
 import { fmt } from './components/format'
+import { MissionClock } from './components/MissionClock'
 import { MissionSetupForm } from './components/MissionSetupForm'
 import { Panel } from './components/Panel'
 import { PlanComparison } from './components/PlanComparison'
@@ -27,6 +28,8 @@ function simulate(plan: MissionPlan): Run {
 
 const CUSTOM = 'custom'
 
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
+
 /** Let the browser paint (spinner, button state) before a long synchronous computation. */
 const afterPaint = (work: () => void) => setTimeout(work, 30)
 
@@ -40,6 +43,8 @@ function App() {
   const [applying, setApplying] = useState(false)
   // Up to two saved runs for side-by-side comparison, kept in memory only.
   const [saved, setSaved] = useState<{ a?: SavedRun; b?: SavedRun }>({})
+  // Set when a run throws; the last good run stays on screen under the error.
+  const [runError, setRunError] = useState<string | null>(null)
   const blockedReason = useMemo(() => runBlockedReason(plan), [plan])
   const stale = run.plan !== plan
 
@@ -52,7 +57,12 @@ function App() {
   useEffect(() => {
     let cancelled = false
     const timer = afterPaint(() => {
-      const state = suggestFix(run.plan, run.result)
+      let state: FixState
+      try {
+        state = suggestFix(run.plan, run.result)
+      } catch (e) {
+        state = { status: 'noFix', sentence: `Couldn't search for a fix: ${errorText(e)}` }
+      }
       if (!cancelled) setFix({ for: run, state })
     })
     return () => {
@@ -62,6 +72,16 @@ function App() {
   }, [run])
 
   const fixState: FixState = fix?.for === run ? fix.state : 'searching'
+
+  /** Runs `next` and shows it, or keeps the last run and reports why this one failed. */
+  function tryRun(next: MissionPlan) {
+    try {
+      setRun(simulate(next))
+      setRunError(null)
+    } catch (e) {
+      setRunError(errorText(e))
+    }
+  }
 
   // Takes a plan (setup form) or an updater (manifest), like setPlan itself.
   const editPlan = (next: MissionPlan | ((plan: MissionPlan) => MissionPlan)) => {
@@ -73,7 +93,7 @@ function App() {
   const loadPreset = (id: PresetId) => {
     const next = presetById(id).plan()
     setPlan(next)
-    setRun(simulate(next))
+    tryRun(next)
     setPresetId(id)
   }
 
@@ -83,14 +103,19 @@ function App() {
     const before = run
     setApplying(true)
     afterPaint(() => {
-      const after = simulate(fixed)
       editPlan(fixed)
-      setRun(after)
-      // The comparison shows the fix right away: the previous run as Before, the fixed one as After.
-      setSaved({
-        a: { name: 'Before', plan: before.plan, result: before.result },
-        b: { name: 'After', plan: after.plan, result: after.result },
-      })
+      try {
+        const after = simulate(fixed)
+        setRun(after)
+        setRunError(null)
+        // The comparison shows the fix right away: the previous run as Before, the fixed one as After.
+        setSaved({
+          a: { name: 'Before', plan: before.plan, result: before.result },
+          b: { name: 'After', plan: after.plan, result: after.result },
+        })
+      } catch (e) {
+        setRunError(errorText(e))
+      }
       setApplying(false)
     })
   }
@@ -129,6 +154,7 @@ function App() {
               : `${fmt(run.result.runs)} runs · seed ${run.result.seed}`}
           </span>
         </div>
+        <MissionClock />
       </header>
 
       <main className="layout">
@@ -137,7 +163,7 @@ function App() {
             <MissionSetupForm
               plan={plan}
               onChange={editPlan}
-              onRun={() => setRun(simulate(plan))}
+              onRun={() => tryRun(plan)}
               runBlockedReason={blockedReason}
             />
           </Panel>
@@ -147,6 +173,11 @@ function App() {
         </div>
 
         <div className={stale ? 'column is-stale' : 'column'}>
+          {runError && (
+            <p className="run-error" role="alert">
+              ▼ Run failed: {runError}. Showing the last successful run.
+            </p>
+          )}
           <ResultsView
             result={run.result}
             plan={run.plan}
@@ -188,7 +219,7 @@ function App() {
         </div>
 
         <Panel title="Crew" className="crew-row">
-          <CrewRoster plan={plan} onChange={editPlan} />
+          <CrewRoster plan={plan} onChange={editPlan} result={run.result} resultPlan={run.plan} />
         </Panel>
       </main>
     </div>

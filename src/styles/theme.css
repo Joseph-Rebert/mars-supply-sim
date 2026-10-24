@@ -1,7 +1,8 @@
 /* Flight-console theme: a telemetry sheet, not a card dashboard. Hairline rules instead of boxes,
    square corners, one amber accent, status colors only when something is off-nominal.
    All colors live here as tokens — no hard-coded colors in components.
-   Contrast targets a projector: body text ≥ 16px, text ≥ 7:1 on --bg. */
+   Contrast targets a projector: body text ≥ 16px, text ≥ 7:1 on --bg; even the dimmest text
+   (hints, disabled controls) stays above WCAG AA's 4.5:1. */
 
 :root {
   --bg: #0d0c0a;
@@ -10,7 +11,7 @@
   --rule-strong: #4a453a;
   --text: #ebe5d6;
   --text-muted: #a39c8b;
-  --text-dim: #6f695c;
+  --text-dim: #8f8878;
 
   --accent: #ffb000;
   --on-accent: #0d0c0a;
@@ -1206,4 +1207,86 @@ p {
 
 .crew-needs {
   font-size: var(--fs-label);
+
+/* ---------- Mission clock (GEA-36) ---------- */
+
+.mission-clock {
+  padding-left: var(--gap);
+  border-left: 1px solid var(--rule-strong);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mission-clock-zone {
+  color: var(--text-muted);
+}
+
+/* The header gets crowded before the layout collapses: drop the subtitle first, then the clock. */
+@media (max-width: 1180px) {
+  .app-subtitle {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .mission-clock {
+    display: none;
+  }
+}
+
+/* ---------- Run error (GEA-36) ---------- */
+
+.run-error {
+  margin: 16px var(--pad) 0;
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  color: var(--critical);
+  border: 1px solid var(--critical);
+}
+
+/* Crew card health (GEA-29, after a run) */
+.crew-card-caution {
+  border-color: var(--caution);
+}
+
+.crew-card-critical {
+  border-color: var(--critical);
+}
+
+.crew-health {
+  display: grid;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+  font-size: var(--fs-label);
+}
+
+.crew-health-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--mono);
+  text-transform: uppercase;
+}
+
+.crew-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.crew-estimate,
+.crew-alert {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+}
+
+.crew-estimate {
+  color: var(--text-muted);
+}
+
+.crew-info {
+  color: var(--accent);
+  cursor: help;
 }

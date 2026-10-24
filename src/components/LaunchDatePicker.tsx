@@ -47,7 +47,7 @@ function stripOption(
   return {
     backgroundColor: 'transparent',
     animation: false,
-    textStyle: { color: cssVar('--chart-axis'), fontFamily: mono, fontSize: 12 },
+    textStyle: { color: cssVar('--chart-axis'), fontFamily: mono, fontSize: 13 },
     grid: { left: 48, right: 12, top: 14, bottom: 22 },
     tooltip: {
       trigger: 'axis',
@@ -175,7 +175,11 @@ export function LaunchDatePicker({ plan, flight, onChange }: Props) {
         )}
       </p>
 
-      <EChart option={option} height={96} />
+      <EChart
+        option={option}
+        height={96}
+        label={`${flight.label}: launch capacity by date, ${pct}% on ${launchDate}`}
+      />
     </div>
   )
 }

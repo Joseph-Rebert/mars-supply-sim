@@ -195,7 +195,7 @@ export type FailureCause =
       kind: 'crewUnfit'
       day: number
       crewId: string
-      /** Main driver, e.g. 'vitaminC' or 'boneDensity' (Crew Diet & Health). */
+      /** Main driver: 'boneLoss', 'scurvy' or 'bodyMass' (GEA-23); GEA-32 may add nutrition drivers. */
       driver?: string
     }
 
@@ -236,6 +236,19 @@ export type RunResult = {
   componentEvents: ComponentEvent[]
   /** Per crew member id; present when every crew member has a full profile (GEA-17). */
   nutrition?: Record<string, Record<NutrientKey, NutrientTally>>
+  /** Health score 0–100 per crew member id, one value every HEALTH_BAND_STEP_DAYS days (sim.ts). */
+  healthScore?: Record<string, Float64Array>
+  /** Body state at the end of the run (or at failure) per crew member id. */
+  body?: Record<string, BodyState>
+}
+
+/** One crew member's body at a point in the mission (GEA-23). */
+export type BodyState = {
+  /** Hip/spine bone mineral density lost, % of pre-mission. */
+  boneLossPct: number
+  muscleLossPct: number
+  massLossPct: number
+  vitaminCPoolMg: number
 }
 
 /** Percentiles across runs, index = day. */
@@ -267,4 +280,6 @@ export type SimResult = {
   totalLaunchMassKg: number
   /** Health score (0–100) band per crew member id. Present once Crew Diet & Health lands. */
   crewHealth?: Record<string, Band>
+  /** Median body state at the end of the run (or at failure) per crew member id, for the roster cards. */
+  crewBody?: Record<string, Pick<BodyState, 'boneLossPct' | 'muscleLossPct' | 'massLossPct'>>
 }

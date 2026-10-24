@@ -30,11 +30,13 @@ type Props = {
   option: EChartOption
   height?: number | string
   className?: string
+  /** What the chart shows, for screen readers (the canvas itself has no text). */
+  label?: string
 }
 
 // Thin wrapper: one ECharts instance per mount, option updates in place, resizes with its container.
 // overflow: hidden lets the container shrink below the canvas's last width so ResizeObserver fires.
-export function EChart({ option, height = 320, className }: Props) {
+export function EChart({ option, height = 320, className, label }: Props) {
   const el = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
 
@@ -59,6 +61,8 @@ export function EChart({ option, height = 320, className }: Props) {
     <div
       ref={el}
       className={className}
+      role={label ? 'img' : undefined}
+      aria-label={label}
       style={{ width: '100%', minWidth: 0, overflow: 'hidden', height }}
     />
   )

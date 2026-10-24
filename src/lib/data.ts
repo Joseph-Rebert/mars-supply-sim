@@ -125,6 +125,77 @@ export const MINERAL_DECAY_PER_DAY = 0
 // ASSUMPTION: the supplement dose equals the 10 µg/day NASA goal (no dose is given in either source).
 export const VITAMIN_D_SUPPLEMENT_UG_PER_DAY = 10
 
+// ---------- Body health (GEA-23) ----------
+
+// Source: LeBlanc et al., "Bone mineral and lean tissue loss after long duration space flight", J Musculoskelet
+// Neuronal Interact 1:157–160 (2000), Table 1: lumbar spine −1.06 ± 0.63 %/month on Mir (no effective
+// countermeasures), https://jmni.hylonome.net/published/2/leblanc.pdf (÷ 30.4375 days/month).
+export const BONE_LOSS_PCT_PER_DAY_0G = 1.06 / 30.4375
+
+// Source: Smith et al., J Bone Miner Res 27:1896 (2012): with ARED resistance exercise, adequate energy and
+// vitamin D, hip BMD was "unchanged from preflight"; Sibonga et al., Bone 128:112037 (2019): ARED "partially
+// attenuated declines". ASSUMPTION: full exercise keeps 25% of the unmitigated loss rate.
+export const BONE_LOSS_WITH_EXERCISE_FRACTION = 0.25
+
+// ASSUMPTION: 90 min/day counts as the full ISS exercise countermeasure; less scales linearly toward none.
+export const EXERCISE_FULL_COUNTERMEASURE_MIN = 90
+
+// ASSUMPTION: days without enough vitamin D, or with calcium below CALCIUM_SEVERE_SHORT_FRACTION of need, double
+// the bone-loss rate. Smith et al. (2012) credit vitamin D and energy for protecting bone; no dose–response exists.
+export const BONE_LOSS_NUTRIENT_SHORT_MULTIPLIER = 2
+
+// ASSUMPTION: 50%. ISS crews ate ~20% below the calcium target (Cooper et al. 2017) yet kept hip BMD with ARED and
+// vitamin D (Smith et al. 2012), so only a severe calcium shortfall is treated as speeding bone loss.
+export const CALCIUM_SEVERE_SHORT_FRACTION = 0.5
+
+// ASSUMPTION: bone and muscle loss scale with (1 − gravity in g): no human partial-gravity data exists. Rodent
+// studies show graded loss with unloading (Ko et al., npj Microgravity 6:15, 2020), so this may be optimistic.
+export const UNLOADING_EXPONENT = 1
+
+// Source: NASA-STD-3001 Vol 1 [V1 4027] via OCHMO-TB-030 "Bone Loss": countermeasures "shall maintain bone mineral
+// density of the hip and spine at or above 95% of pre-mission values", https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-030-bone-loss.pdf
+export const NASA_BONE_LOSS_LIMIT_PCT = 5
+
+// ASSUMPTION: twice NASA's limit (10% loss, roughly the drop from the T −1.0 entry standard to the T −2.0 floor in
+// the same brief) makes a crew member medically unfit; NASA's 5% is a countermeasure target, not incapacity.
+export const BONE_LOSS_UNFIT_PCT = 2 * NASA_BONE_LOSS_LIMIT_PCT
+
+// Source: Trappe et al., J Appl Physiol 106:1159 (2009): ISS crews exercising lost calf muscle volume
+// "13 ± 2%" over ~6 months (÷ 180 days ≈ 0.07 %/day).
+export const MUSCLE_LOSS_PCT_PER_DAY_EXERCISING = 13 / 180
+
+// Source: Alkner & Tesch, Eur J Appl Physiol (2004), 90-day bed rest without exercise: knee extensor volume
+// decreased 18% (÷ 90 days = 0.2 %/day).
+export const MUSCLE_LOSS_PCT_PER_DAY_NO_EXERCISE = 18 / 90
+
+// ASSUMPTION: muscle loss levels off with a 180-day time constant (loss → rate × 180 d). The measured rates come
+// from ≤ 6-month missions (Trappe 2009) and 90-day bed rest; extending them linearly to 30 months would predict
+// >40% loss, far beyond any observation.
+export const MUSCLE_LOSS_LEVEL_OFF_DAYS = 180
+
+// ASSUMPTION: days short of protein multiply muscle loss by 1.5 (no spaceflight dose–response found).
+export const MUSCLE_LOSS_PROTEIN_SHORT_MULTIPLIER = 1.5
+
+// Source: Hall, "What is the required energy deficit per unit weight loss?", Int J Obes 32:573 (2008):
+// "3500 kcal … per pound … or equivalently 32.2 MJ kg⁻¹" ≈ 7,700 kcal per kg.
+export const KCAL_PER_KG_BODY_MASS = 32_200 / 4.184
+
+// ASSUMPTION: losing more than 15% of starting body mass makes a crew member medically unfit.
+export const BODY_MASS_LOSS_UNFIT_PCT = 15
+
+// Source: UK Department of Health, "Dietary Reference Values", Report 41 (1991), ch. 17 p.117: "about 2.7 per cent
+// of the exchangeable body pool … is degraded each day … a first-order rate",
+// https://www.mv.helsinki.fi/home/hemila/experts/DH_1991.pdf
+export const VITAMIN_C_POOL_TURNOVER_PER_DAY = 0.027
+
+// ASSUMPTION: a well-nourished crew starts at a saturated ~1,500 mg pool (secondary sources only); the pool can't
+// exceed it, as extra intake is excreted.
+export const VITAMIN_C_POOL_MAX_MG = 1500
+
+// Source: Institute of Medicine, DRI for Vitamin C (2000), p.100: "A total body pool of less than 300 mg is
+// associated with scurvy symptoms (Baker et al., 1971)", https://nap.nationalacademies.org/catalog/9810
+export const VITAMIN_C_SCURVY_POOL_MG = 300
+
 // ---------- ISS ECLSS performance ----------
 
 // Source: NASA, "NASA Achieves Water Recovery Milestone on International Space Station" (2023-06-20),

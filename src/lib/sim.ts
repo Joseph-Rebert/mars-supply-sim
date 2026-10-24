@@ -8,8 +8,9 @@ import {
   ELECTROLYSIS_WATER_KG_PER_KG_O2,
   GREENHOUSE_FOOD_KG_PER_M2_DAY,
 } from './data'
-import { crewFoodKgPerDay } from './crew'
+import { crewFoodKgPerDay, type CrewProfile } from './crew'
 import { createNutritionTracker } from './diet'
+import { createHealthTracker } from './health'
 import { daysBetween } from './dates'
 import { cargoArrivals, totalLaunchMassKg } from './manifest'
 import { mulberry32, type Rng } from './rng'
@@ -159,6 +160,12 @@ export function runOnce(
   const online = (c: ComponentKey) => installed[c] && downUntil[c] === ONLINE
   const events: ComponentEvent[] = []
   const nutrition = createNutritionTracker(plan.crew)
+  const health =
+    nutrition &&
+    createHealthTracker(plan.crew as CrewProfile[], DESTINATION_PROFILES[plan.destination].gravityG)
+  const healthScore = health
+    ? plan.crew.map(() => new Float64Array(Math.ceil(days / HEALTH_BAND_STEP_DAYS)))
+    : null
 
   const stocks: Record<ResourceKey, number[]> = {
     o2: new Array<number>(days),
@@ -218,6 +225,7 @@ export function runOnce(
         const fresh = Math.min(grown, rates.consumeKg.food)
         nutrition.eat(day, rates.consumeKg.food - fresh, fresh)
         nutrition.deliver(grown - fresh, day)
+        health?.step(nutrition)
       }
       co2DownDays = online('co2Scrubber') ? 0 : co2DownDays + 1
 
@@ -233,6 +241,16 @@ export function runOnce(
         }
       } else if (co2DownDays > CO2_SCRUBBER_GRACE_DAYS) {
         failure = { kind: 'systemDown', component: 'co2Scrubber', day }
+      } else if (health) {
+        const unfit = health.unfit()
+        if (unfit) {
+          failure = {
+            kind: 'crewUnfit',
+            day,
+            crewId: plan.crew[unfit.index].id,
+            driver: unfit.driver,
+          }
+        }
       }
       if (failure) {
         o2 = Math.max(0, o2)
@@ -244,6 +262,12 @@ export function runOnce(
     stocks.o2[day] = o2
     stocks.water[day] = water
     stocks.food[day] = food
+    if (health && healthScore) {
+      if (day % HEALTH_BAND_STEP_DAYS === 0) {
+        const w = day / HEALTH_BAND_STEP_DAYS
+        for (let i = 0; i < healthScore.length; i++) healthScore[i][w] = health.score(i)
+      }
+    }
     stocks.spares[day] =
       spareStock.waterRecycler +
       spareStock.o2Generator +
@@ -253,10 +277,24 @@ export function runOnce(
 
   const result: RunResult = { survived: !failure, failure, stocks, componentEvents: events }
   if (nutrition) result.nutrition = nutrition.result()
+  if (health && healthScore) {
+    result.healthScore = Object.fromEntries(plan.crew.map((m, i) => [m.id, healthScore[i]]))
+    result.body = Object.fromEntries(plan.crew.map((m, i) => [m.id, health.body(i)]))
+  }
   return result
 }
 
 export const DEFAULT_RUN_OPTIONS: RunOptions = { runs: 1000, seed: 1 }
+
+/** Health bands are computed every this many days and held in between (crew-card sparklines). */
+export const HEALTH_BAND_STEP_DAYS = 7
+
+/** Expands a band sampled every HEALTH_BAND_STEP_DAYS into one value per day (step-hold). */
+function holdDaily(band: Band, days: number): Band {
+  const hold = (s: number[]) =>
+    Array.from({ length: days }, (_, d) => s[Math.floor(d / HEALTH_BAND_STEP_DAYS)])
+  return { p10: hold(band.p10), p50: hold(band.p50), p90: hold(band.p90) }
+}
 
 /** Value at quantile q (0–1) of an ascending array, interpolating between neighbours. */
 export function quantile(sorted: ArrayLike<number>, q: number): number {
@@ -266,14 +304,50 @@ export function quantile(sorted: ArrayLike<number>, q: number): number {
   return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo)
 }
 
-/** P10/P50/P90 per day from day-major samples (`samples[day * runs + run]`). Sorts in place. */
+/** Moves the k-th smallest value of a[left..right] to index k (quickselect, Hoare partition). */
+function selectKth(a: Float64Array, k: number, left: number, right: number): void {
+  while (left < right) {
+    const pivot = a[(left + right) >> 1]
+    let i = left
+    let j = right
+    while (i <= j) {
+      while (a[i] < pivot) i++
+      while (a[j] > pivot) j--
+      if (i <= j) {
+        const tmp = a[i]
+        a[i] = a[j]
+        a[j] = tmp
+        i++
+        j--
+      }
+    }
+    if (k <= j) right = j
+    else if (k >= i) left = i
+    else return
+  }
+}
+
+/** Same value as quantile() on the sorted array, without sorting it all (reorders `a`). */
+function quantileSelect(a: Float64Array, q: number): number {
+  const pos = q * (a.length - 1)
+  const lo = Math.floor(pos)
+  selectKth(a, lo, 0, a.length - 1)
+  const low = a[lo]
+  if (pos === lo) return low
+  // Everything after index lo is ≥ a[lo]; the next order statistic is their minimum.
+  let next = Infinity
+  for (let i = lo + 1; i < a.length; i++) if (a[i] < next) next = a[i]
+  return low + (next - low) * (pos - lo)
+}
+
+/** P10/P50/P90 per day from day-major samples (`samples[day * runs + run]`). Reorders in place. */
 export function percentileBand(samples: Float64Array, days: number, runs: number): Band {
   const band: Band = { p10: new Array(days), p50: new Array(days), p90: new Array(days) }
   for (let day = 0; day < days; day++) {
-    const values = samples.subarray(day * runs, (day + 1) * runs).sort()
-    band.p10[day] = quantile(values, 0.1)
-    band.p50[day] = quantile(values, 0.5)
-    band.p90[day] = quantile(values, 0.9)
+    const values = samples.subarray(day * runs, (day + 1) * runs)
+    band.p10[day] = quantileSelect(values, 0.1)
+    band.p50[day] = quantileSelect(values, 0.5)
+    band.p90[day] = quantileSelect(values, 0.9)
   }
   return band
 }
@@ -293,6 +367,16 @@ export function runMission(
   const samples = {} as Record<ResourceKey, Float64Array>
   for (const k of RESOURCE_KEYS) samples[k] = new Float64Array(days * runs)
 
+  // Health score samples per crew member, weekly (sparklines don't need daily resolution), filled only
+  // when runs report health (full crew profiles).
+  const weeks = Math.ceil(days / HEALTH_BAND_STEP_DAYS)
+  const healthSamples = new Map<string, Float64Array>()
+  // End-of-run body state per crew member, one value per run, for the roster card medians.
+  const bodySamples = new Map<
+    string,
+    { bone: Float64Array; muscle: Float64Array; mass: Float64Array }
+  >()
+
   const failures: FailureCause[] = []
   let survived = 0
   for (let run = 0; run < runs; run++) {
@@ -304,12 +388,31 @@ export function runMission(
       const out = samples[k]
       for (let day = 0; day < days; day++) out[day * runs + run] = series[day]
     }
+    for (const [id, series] of Object.entries(result.healthScore ?? {})) {
+      let out = healthSamples.get(id)
+      if (!out) healthSamples.set(id, (out = new Float64Array(weeks * runs)))
+      for (let w = 0; w < weeks; w++) out[w * runs + run] = series[w]
+    }
+    for (const [id, body] of Object.entries(result.body ?? {})) {
+      let out = bodySamples.get(id)
+      if (!out) {
+        out = {
+          bone: new Float64Array(runs),
+          muscle: new Float64Array(runs),
+          mass: new Float64Array(runs),
+        }
+        bodySamples.set(id, out)
+      }
+      out.bone[run] = body.boneLossPct
+      out.muscle[run] = body.muscleLossPct
+      out.mass[run] = body.massLossPct
+    }
   }
 
   const bands = {} as Record<ResourceKey, Band>
   for (const k of RESOURCE_KEYS) bands[k] = percentileBand(samples[k], days, runs)
 
-  return {
+  const sim: SimResult = {
     runs,
     seed,
     survivalRate: survived / runs,
@@ -319,4 +422,22 @@ export function runMission(
     arrivals: cargoArrivals(plan),
     totalLaunchMassKg: totalLaunchMassKg(plan),
   }
+  if (healthSamples.size > 0) {
+    sim.crewHealth = Object.fromEntries(
+      [...healthSamples].map(([id, s]) => [id, holdDaily(percentileBand(s, weeks, runs), days)]),
+    )
+  }
+  if (bodySamples.size > 0) {
+    sim.crewBody = Object.fromEntries(
+      [...bodySamples].map(([id, s]) => [
+        id,
+        {
+          boneLossPct: quantileSelect(s.bone, 0.5),
+          muscleLossPct: quantileSelect(s.muscle, 0.5),
+          massLossPct: quantileSelect(s.mass, 0.5),
+        },
+      ]),
+    )
+  }
+  return sim
 }
