@@ -1,7 +1,10 @@
 // Fake data so UI work can start before the sim exists (GEA-9).
-// PLACEHOLDER numbers — shaped like the demo story (~62% survival, water fails ~month 19),
-// NOT sourced. Real values come from data.ts; real results from sim.ts.
+// fakePlan() is the default plan: a "reasonable-looking" Mars plan sized against the real transfer
+// table and data.ts, which the real sim (runMission) puts at ~57% survival, failing mostly when the
+// water recycler runs out of spares. GEA-35 tunes the demo presets from here.
+// fakeResult() is still PLACEHOLDER output shaped like the demo story, NOT sim output.
 
+import { DESTINATION_PROFILES } from './data'
 import { addDays, daysBetween } from './dates'
 import { mulberry32, type Rng } from './rng'
 import {
@@ -68,23 +71,34 @@ export function fakePlan(): MissionPlan {
       o2Source: 'electrolysis',
       greenhouse: { enabled: false, areaM2: 0 },
     },
+    // Both landers launch in the 2028 window and land ~40 days before the crew (day 0); the resupply
+    // launches on the 2031 window's best date and lands on day 811. Starting stock covers 811 days
+    // at 4 crew (water 5.29 kg/day net, food 7.84 kg/day) with a small margin.
     flights: [
       {
         id: 'f1',
-        label: 'Initial landing',
-        launchDate: '2028-12-01',
-        consumablesKg: { o2: 900, water: 2400, food: 3000 },
-        spares: { waterRecycler: 2, o2Generator: 2, co2Scrubber: 2, greenhouse: 0 },
+        label: 'Cargo lander 1',
+        launchDate: '2028-12-11',
+        consumablesKg: { o2: 600, water: 4700, food: 0 },
+        // 5 recycler spares ≈ 57% survival; 10 lifts it above 90% (the demo's "apply fix").
+        spares: { waterRecycler: 5, o2Generator: 3, co2Scrubber: 3, greenhouse: 0 },
       },
       {
         id: 'f2',
+        label: 'Cargo lander 2',
+        launchDate: '2028-12-18',
+        consumablesKg: { o2: 300, water: 0, food: 6700 },
+        spares: { waterRecycler: 0, o2Generator: 0, co2Scrubber: 0, greenhouse: 0 },
+      },
+      {
+        id: 'f3',
         label: 'Resupply 1',
-        launchDate: '2031-01-15',
-        consumablesKg: { o2: 400, water: 800, food: 2600 },
-        spares: { waterRecycler: 1, o2Generator: 1, co2Scrubber: 1, greenhouse: 0 },
+        launchDate: '2031-01-25',
+        consumablesKg: { o2: 200, water: 700, food: 800 },
+        spares: { waterRecycler: 2, o2Generator: 1, co2Scrubber: 1, greenhouse: 0 },
       },
     ],
-    baseVehiclePayloadKg: 15_000,
+    baseVehiclePayloadKg: DESTINATION_PROFILES.mars.baseVehiclePayloadKg,
   }
 }
 

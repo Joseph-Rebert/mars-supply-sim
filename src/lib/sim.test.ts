@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { mulberry32, type Rng } from './rng'
-import { describeFailure } from './analysis'
+import { describeFailure, failureHistogram } from './analysis'
 import { COMPONENTS } from './data'
-import { arrivalDay, dailyRates, runOnce } from './sim'
+import { fakePlan } from './fake'
+import { cargoArrivals, overCapacityFlights, totalLaunchMassKg } from './manifest'
+import { arrivalDay, dailyRates, percentileBand, quantile, runMission, runOnce } from './sim'
 import type { CrewMember, LifeSupportConfig, MissionPlan } from './types'
 
 const CREW: CrewMember[] = [1, 2, 3, 4].map((n) => ({
@@ -295,5 +297,118 @@ describe('runOnce, component failures', () => {
     const r = runOnce(plan({ o2Source: 'tanks' }, { o2: 1000 }, 10), () => 0)
     const failed = new Set(r.componentEvents.map((e) => e.component))
     expect(failed).toEqual(new Set(['waterRecycler', 'co2Scrubber']))
+  })
+})
+
+describe('quantile and percentileBand', () => {
+  it('interpolates between order statistics', () => {
+    const tens = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    expect(quantile(tens, 0.1)).toBe(10)
+    expect(quantile(tens, 0.5)).toBe(50)
+    expect(quantile(tens, 0.9)).toBe(90)
+    // [1, 2, 3, 4]: position 1.5 → halfway between 2 and 3.
+    expect(quantile([1, 2, 3, 4], 0.5)).toBe(2.5)
+  })
+
+  it('computes P10/P50/P90 per day from day-major samples', () => {
+    // 2 days × 5 runs. Day 0: 5,1,4,2,3 → sorted 1..5. Day 1: all 7.
+    const samples = Float64Array.from([5, 1, 4, 2, 3, 7, 7, 7, 7, 7])
+    const band = percentileBand(samples, 2, 5)
+    // Day 0, n = 5: P10 at position 0.4 → 1.4; P50 at 2 → 3; P90 at 3.6 → 4.6.
+    expect(band.p10[0]).toBeCloseTo(1.4, 12)
+    expect(band.p50[0]).toBe(3)
+    expect(band.p90[0]).toBeCloseTo(4.6, 12)
+    expect(band.p50[1]).toBe(7)
+  })
+})
+
+describe('runMission', () => {
+  const p = plan({ greenhouse: { enabled: true, areaM2: 10 } }, { water: 3000 }, 200)
+
+  it('gives identical results for the same seed and different ones for another seed', () => {
+    const a = runMission(p, { runs: 200, seed: 7 })
+    expect(runMission(p, { runs: 200, seed: 7 })).toEqual(a)
+    expect(runMission(p, { runs: 200, seed: 8 }).failures).not.toEqual(a.failures)
+  })
+
+  it('counts survival as runs with no failure, from one seeded stream of runOnce', () => {
+    const result = runMission(p, { runs: 300, seed: 3 })
+    const rng = mulberry32(3)
+    let survived = 0
+    for (let i = 0; i < 300; i++) if (runOnce(p, rng).survived) survived++
+    expect(result.survivalRate).toBe(survived / 300)
+    expect(result.failures).toHaveLength(300 - survived)
+  })
+
+  it('matches the SimResult shape the UI expects', () => {
+    const r = runMission(p, { runs: 50, seed: 1 })
+    expect(r.runs).toBe(50)
+    expect(r.seed).toBe(1)
+    expect(r.durationDays).toBe(200)
+    for (const band of Object.values(r.bands)) {
+      for (const series of [band.p10, band.p50, band.p90]) expect(series).toHaveLength(200)
+      for (let d = 0; d < 200; d++) {
+        expect(band.p10[d]).toBeLessThanOrEqual(band.p50[d])
+        expect(band.p50[d]).toBeLessThanOrEqual(band.p90[d])
+      }
+    }
+    expect(r.arrivals).toEqual(cargoArrivals(p))
+    expect(r.totalLaunchMassKg).toBe(totalLaunchMassKg(p))
+  })
+
+  it('rejects a non-positive run count', () => {
+    expect(() => runMission(p, { runs: 0, seed: 1 })).toThrow(RangeError)
+  })
+
+  it('runs 1,000 runs of a 900-day Mars mission in under 1 s', () => {
+    const mars = fakePlan()
+    expect(mars.destination).toBe('mars')
+    expect(mars.durationDays).toBe(900)
+    runMission(mars, { runs: 50, seed: 1 }) // warm up the JIT
+    const start = performance.now()
+    runMission(mars, { runs: 1000, seed: 1 })
+    expect(performance.now() - start).toBeLessThan(1000)
+  })
+})
+
+describe('failureHistogram', () => {
+  it('groups failures by cause, most common first, with sorted days', () => {
+    const groups = failureHistogram([
+      { kind: 'stockout', resource: 'water', day: 500, offlineComponent: 'waterRecycler' },
+      { kind: 'stockout', resource: 'food', day: 820 },
+      { kind: 'stockout', resource: 'water', day: 410, offlineComponent: 'waterRecycler' },
+      { kind: 'systemDown', component: 'co2Scrubber', day: 3 },
+    ])
+    expect(groups.map((g) => [g.key, g.count, g.days])).toEqual([
+      ['water/waterRecycler', 2, [410, 500]],
+      ['food', 1, [820]],
+      ['systemDown/co2Scrubber', 1, [3]],
+    ])
+    expect(groups[0]).toMatchObject({ resource: 'water', component: 'waterRecycler' })
+  })
+})
+
+describe('fakePlan() as the default plan', () => {
+  const plan = fakePlan()
+
+  it('lands its starting cargo before the crew arrives and fits every flight in its payload limit', () => {
+    const arrivals = cargoArrivals(plan)
+    expect(arrivals[0].arrivalDay).toBeLessThanOrEqual(0)
+    expect(arrivals[1].arrivalDay).toBeLessThanOrEqual(0)
+    expect(overCapacityFlights(plan)).toEqual([])
+  })
+
+  it('tells the demo story: ~60% survival, water recycler spares are the weakest link', () => {
+    const result = runMission(plan)
+    expect(result.survivalRate).toBeGreaterThan(0.45)
+    expect(result.survivalRate).toBeLessThan(0.7)
+    expect(failureHistogram(result.failures)[0].key).toBe('water/waterRecycler')
+  })
+
+  it('climbs above 90% when 5 more recycler spares are added (the demo fix)', () => {
+    const fixed = fakePlan()
+    fixed.flights[0].spares.waterRecycler += 5
+    expect(overCapacityFlights(fixed)).toEqual([])
+    expect(runMission(fixed).survivalRate).toBeGreaterThan(0.9)
   })
 })
