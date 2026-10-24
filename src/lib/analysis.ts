@@ -5,7 +5,7 @@
 // TODO(GEA-26): ship-vs-make (stretch)
 
 import { CO2_SCRUBBER_GRACE_DAYS, COMPONENTS } from './data'
-import type { ConsumableKey, FailureCause } from './types'
+import type { ComponentKey, ConsumableKey, FailureCause } from './types'
 
 const RESOURCE_NAME: Record<ConsumableKey, string> = {
   o2: 'O₂',
@@ -35,4 +35,46 @@ export function describeFailure(cause: FailureCause): string {
     case 'crewUnfit':
       return `Crew member ${cause.crewId} became unfit on day ${cause.day}${cause.driver ? ` (${cause.driver})` : ''}`
   }
+}
+
+/** What a failure is "about", for grouping: the offline component if known, else the resource. */
+export type FailureGroup = {
+  /** e.g. 'water/waterRecycler', 'o2', 'systemDown/co2Scrubber', 'crewUnfit' */
+  key: string
+  resource?: ConsumableKey
+  component?: ComponentKey
+  count: number
+  /** Failure days, ascending, for the distribution of when it happens. */
+  days: number[]
+}
+
+function groupOf(cause: FailureCause): Omit<FailureGroup, 'count' | 'days'> {
+  switch (cause.kind) {
+    case 'stockout':
+      return cause.offlineComponent
+        ? {
+            key: `${cause.resource}/${cause.offlineComponent}`,
+            resource: cause.resource,
+            component: cause.offlineComponent,
+          }
+        : { key: cause.resource, resource: cause.resource }
+    case 'systemDown':
+      return { key: `systemDown/${cause.component}`, component: cause.component }
+    case 'crewUnfit':
+      return { key: 'crewUnfit' }
+  }
+}
+
+/** Failure-cause histogram: one group per cause, most common first. */
+export function failureHistogram(failures: readonly FailureCause[]): FailureGroup[] {
+  const groups = new Map<string, FailureGroup>()
+  for (const cause of failures) {
+    const g = groupOf(cause)
+    const group = groups.get(g.key) ?? { ...g, count: 0, days: [] }
+    group.count++
+    group.days.push(cause.day)
+    groups.set(g.key, group)
+  }
+  for (const g of groups.values()) g.days.sort((x, y) => x - y)
+  return [...groups.values()].sort((x, y) => y.count - x.count || x.key.localeCompare(y.key))
 }
