@@ -46,7 +46,7 @@ function timelineOption(
     silent: true,
     itemStyle: { color: accent, opacity: 0.08 },
     label: labelled
-      ? { show: true, position: 'insideTop', color: accent, fontFamily: mono, fontSize: 12 }
+      ? { show: true, position: 'insideTop', color: accent, fontFamily: mono, fontSize: 13 }
       : { show: false },
     data: [
       ...overlays.windows.map((w) => [{ xAxis: w.startDay, name: w.label }, { xAxis: w.endDay }]),
@@ -86,7 +86,7 @@ function timelineOption(
             align: 'right',
             color: muted,
             fontFamily: mono,
-            fontSize: 12,
+            fontSize: 13,
           },
         })),
     ],
@@ -95,7 +95,7 @@ function timelineOption(
   return {
     backgroundColor: 'transparent',
     animation: false,
-    textStyle: { color: cssVar('--chart-axis'), fontFamily: mono, fontSize: 13 },
+    textStyle: { color: cssVar('--chart-axis'), fontFamily: mono, fontSize: 14 },
     // With a distance strip: resource grid on top, a thin strip below sharing the day axis.
     grid: distance
       ? [
@@ -182,7 +182,7 @@ function timelineOption(
               min: 0,
               max: 'dataMax',
               splitNumber: 1,
-              axisLabel: { formatter: (v: number) => fmt(v), fontSize: 11, showMaxLabel: false },
+              axisLabel: { formatter: (v: number) => fmt(v), fontSize: 13, showMaxLabel: false },
               splitLine: { show: false },
             },
           ]
@@ -257,7 +257,7 @@ function timelineOption(
                       formatter: `Closest · ${Math.round(closest.mkm)} M km`,
                       color: muted,
                       fontFamily: mono,
-                      fontSize: 12,
+                      fontSize: 13,
                     },
                     data: [{ coord: [closest.day, closest.mkm] }],
                   }
@@ -320,7 +320,11 @@ export function ResourceTimeline({ result, plan, highlight, height = 270 }: Prop
           </span>
         )}
       </div>
-      <EChart option={option} height={height} />
+      <EChart
+        option={option}
+        height={height}
+        label={`Median O₂, water, food and spares stock over ${result.durationDays} days, with P10–P90 bands across ${fmt(result.runs)} runs${highlight ? "; the weakest link's failure month is shaded" : ''}`}
+      />
     </>
   )
 }
