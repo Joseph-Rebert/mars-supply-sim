@@ -3,7 +3,7 @@ import { mulberry32, type Rng } from './rng'
 import { describeFailure, failureHistogram } from './analysis'
 import { COMPONENTS } from './data'
 import { fakePlan } from './fake'
-import { cargoArrivals, totalLaunchMassKg } from './manifest'
+import { cargoArrivals, overCapacityFlights, totalLaunchMassKg } from './manifest'
 import { arrivalDay, dailyRates, percentileBand, quantile, runMission, runOnce } from './sim'
 import type { CrewMember, LifeSupportConfig, MissionPlan } from './types'
 
@@ -385,5 +385,30 @@ describe('failureHistogram', () => {
       ['systemDown/co2Scrubber', 1, [3]],
     ])
     expect(groups[0]).toMatchObject({ resource: 'water', component: 'waterRecycler' })
+  })
+})
+
+describe('fakePlan() as the default plan', () => {
+  const plan = fakePlan()
+
+  it('lands its starting cargo before the crew arrives and fits every flight in its payload limit', () => {
+    const arrivals = cargoArrivals(plan)
+    expect(arrivals[0].arrivalDay).toBeLessThanOrEqual(0)
+    expect(arrivals[1].arrivalDay).toBeLessThanOrEqual(0)
+    expect(overCapacityFlights(plan)).toEqual([])
+  })
+
+  it('tells the demo story: ~60% survival, water recycler spares are the weakest link', () => {
+    const result = runMission(plan)
+    expect(result.survivalRate).toBeGreaterThan(0.45)
+    expect(result.survivalRate).toBeLessThan(0.7)
+    expect(failureHistogram(result.failures)[0].key).toBe('water/waterRecycler')
+  })
+
+  it('climbs above 90% when 5 more recycler spares are added (the demo fix)', () => {
+    const fixed = fakePlan()
+    fixed.flights[0].spares.waterRecycler += 5
+    expect(overCapacityFlights(fixed)).toEqual([])
+    expect(runMission(fixed).survivalRate).toBeGreaterThan(0.9)
   })
 })
