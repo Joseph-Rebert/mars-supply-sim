@@ -2,9 +2,16 @@
 // Rule: each exported constant gets a `// Source:` comment (URL or document name);
 // extrapolated or assumed values are marked `// ASSUMPTION:`.
 // Primary reference is BVAD Rev2 (2022); values are not mixed with Rev1 (2018), which differs.
-// TODO(GEA-12): Mars vs. Moon destination profiles.
 
-import type { ComponentKey, ComponentSpec, ConsumableKey, O2Source, ReadinessTier } from './types'
+import type {
+  ComponentKey,
+  ComponentSpec,
+  ConsumableKey,
+  Destination,
+  DestinationProfile,
+  O2Source,
+  ReadinessTier,
+} from './types'
 
 const BVAD = 'NASA BVAD Rev2, NASA/TP-2015-218570/REV2 (2022)'
 
@@ -205,7 +212,8 @@ export const SHIPPING_OVERHEAD_KG_PER_KG: Record<ConsumableKey, number> = {
 // ---------- Readiness tiers ----------
 
 // Source: OGA electrolysis flies on ISS (ICES-2018-113); MOXIE demonstrated on Mars (JPL 2023); tanks fly on
-// every ISS cargo run (BVAD Rev2 Table 4-4, NORS). Lunar regolith O₂ is concept (Paz et al. 2026), resolved in GEA-12.
+// every ISS cargo run (BVAD Rev2 Table 4-4, NORS). 'isru' readiness per destination is in DESTINATION_PROFILES
+// (lunar regolith O₂ is concept, Paz et al. 2026); this is the best case, Mars MOXIE.
 export const O2_SOURCE_READINESS: Record<O2Source, ReadinessTier> = {
   electrolysis: 'flightProven',
   isru: 'demonstrated',
@@ -266,6 +274,72 @@ export const MOON_TRANSFER_C3_KM2_S2 = -2
 // ASSUMPTION: 0.9 km/s arrival speed relative to the Moon, approximated by Apollo 11's lunar orbit insertion
 // burn (LOI-1 Δv ≈ 889 m/s, Apollo 11 Mission Report, NASA MSC-00171). Display only.
 export const MOON_ARRIVAL_VINF_KM_S = 0.9
+
+// ---------- Destination profiles (GEA-12) ----------
+
+// Source: standard gravity 9.80665 m/s² (BIPM SI Brochure, 9th ed.).
+const G0_M_S2 = 9.80665
+
+// Source: speed of light 299,792.458 km/s (BIPM SI Brochure, 9th ed., exact).
+const C_KM_S = 299_792.458
+
+// Source: NASA Mars Fact Sheet, surface gravity 3.71 m/s², https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html
+export const MARS_GRAVITY_G = 3.71 / G0_M_S2
+
+// Source: NASA Moon Fact Sheet, surface gravity 1.62 m/s², https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html
+export const MOON_GRAVITY_G = 1.62 / G0_M_S2
+
+// Source: light time over the 2026–2042 JPL Horizons Earth–Mars distances in src/cache/horizons-earth-mars.json
+// (min 56.9 M km on 2035-09-12, max 400.2 M km on 2034-08-20) ÷ c.
+export const MARS_COMMS_DELAY_S = { min: 56.9e6 / C_KM_S, max: 400.2e6 / C_KM_S }
+
+// Source: Earth–Moon semimajor axis 384,400 km (NASA Moon Fact Sheet) ÷ c ≈ 1.28 s.
+export const MOON_COMMS_DELAY_S = EARTH_MOON_DISTANCE_KM / C_KM_S
+
+// Source: NASA LSP Falcon Heavy (Expendable) curve above at C3 9 km²/s², the median best-window C3 in
+// src/cache/transfers-mars.json (7.7–18.8): 13,600 − 1,250 × 4/5 = 12,600 kg. Checked in data.test.ts.
+export const MARS_BASE_PAYLOAD_KG = 12_600
+
+// Source: NASA LSP Falcon Heavy (Expendable) curve above at C3 −2 km²/s² (trans-lunar injection) = 15,500 kg.
+// Same vehicle and curve as Mars so the comparison is like for like.
+export const MOON_BASE_PAYLOAD_KG = 15_500
+
+// Source: NASA lunar synodic month 29.53 d, ~14.77 d of night at a non-polar site (NASA Moon Fact Sheet).
+// ASSUMPTION: a solar-lit greenhouse can't grow through the lunar night (batteries can't bridge 14 days),
+// so output scales by the daylight fraction, 0.5. Mars sols (24.6 h) are short enough to buffer, so 1.
+export const MOON_GREENHOUSE_OUTPUT_FACTOR = 0.5
+
+// Source: the constants above; transfer and ISRU sources in their own sections.
+export const DESTINATION_PROFILES: Record<Destination, DestinationProfile> = {
+  mars: {
+    label: 'Mars',
+    transfer: { kind: 'table' },
+    baseVehiclePayloadKg: MARS_BASE_PAYLOAD_KG,
+    isruO2KgPerDay: MOXIE_SCALED_O2_KG_PER_DAY,
+    isruLabel: 'MOXIE-style CO₂ electrolysis',
+    isruReadiness: 'demonstrated',
+    gravityG: MARS_GRAVITY_G,
+    commsDelaySeconds: MARS_COMMS_DELAY_S,
+    greenhouseOutputFactor: 1,
+  },
+  moon: {
+    label: 'Moon',
+    transfer: {
+      kind: 'fixed',
+      transitDays: MOON_TRANSIT_DAYS,
+      c3: MOON_TRANSFER_C3_KM2_S2,
+      vInfArrival: MOON_ARRIVAL_VINF_KM_S,
+      distanceKm: EARTH_MOON_DISTANCE_KM,
+    },
+    baseVehiclePayloadKg: MOON_BASE_PAYLOAD_KG,
+    isruO2KgPerDay: LUNAR_REGOLITH_O2_KG_PER_DAY,
+    isruLabel: 'Regolith oxygen extraction',
+    isruReadiness: 'concept',
+    gravityG: MOON_GRAVITY_G,
+    commsDelaySeconds: { min: MOON_COMMS_DELAY_S, max: MOON_COMMS_DELAY_S },
+    greenhouseOutputFactor: MOON_GREENHOUSE_OUTPUT_FACTOR,
+  },
+}
 
 // ---------- Sources list (for the pitch deck and an in-app credits panel) ----------
 
@@ -330,6 +404,14 @@ export const SOURCES: readonly { title: string; url: string }[] = [
   {
     title: 'Jones, ISS ECLSS ORU reliability, ICES-2019-11',
     url: 'https://ntrs.nasa.gov/api/citations/20190028339/downloads/20190028339.pdf',
+  },
+  {
+    title: 'NASA Mars Fact Sheet',
+    url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html',
+  },
+  {
+    title: 'NASA Moon Fact Sheet',
+    url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html',
   },
   {
     title: 'NASA/JPL Horizons System (Earth & Mars ephemerides)',

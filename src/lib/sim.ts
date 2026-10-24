@@ -4,6 +4,7 @@
 
 import {
   CREW_NEEDS_KG_PER_CREW_DAY,
+  DESTINATION_PROFILES,
   ELECTROLYSIS_WATER_KG_PER_KG_O2,
   GREENHOUSE_FOOD_KG_PER_M2_DAY,
 } from './data'
@@ -16,6 +17,7 @@ import {
   type ConsumableKey,
   type FailureCause,
   type MissionPlan,
+  type O2Source,
   type ResourceKey,
   type RunResult,
 } from './types'
@@ -40,14 +42,22 @@ export function dailyRates(plan: MissionPlan): DailyRates {
     food: crew * CREW_NEEDS_KG_PER_CREW_DAY.food,
   }
   const { waterRecoveryRate, o2Source, greenhouse } = plan.lifeSupport
-  // TODO(GEA-12): cap ISRU output by the destination profile (lunar regolith O₂ is far below crew demand).
-  const o2ProducedKg = o2Source === 'tanks' ? 0 : consumeKg.o2
+  const profile = DESTINATION_PROFILES[plan.destination]
+  // ISRU is capped by what the destination's plant can make (lunar regolith O₂ falls short of crew demand).
+  const o2CapacityKg: Record<O2Source, number> = {
+    electrolysis: consumeKg.o2,
+    isru: profile.isruO2KgPerDay,
+    tanks: 0,
+  }
+  const o2ProducedKg = Math.min(consumeKg.o2, o2CapacityKg[o2Source])
   return {
     consumeKg,
     waterRecoveredKg: consumeKg.water * waterRecoveryRate,
     o2ProducedKg,
     o2WaterCostKg: o2Source === 'electrolysis' ? o2ProducedKg * ELECTROLYSIS_WATER_KG_PER_KG_O2 : 0,
-    greenhouseFoodKg: greenhouse.enabled ? greenhouse.areaM2 * GREENHOUSE_FOOD_KG_PER_M2_DAY : 0,
+    greenhouseFoodKg: greenhouse.enabled
+      ? greenhouse.areaM2 * GREENHOUSE_FOOD_KG_PER_M2_DAY * profile.greenhouseOutputFactor
+      : 0,
   }
 }
 
