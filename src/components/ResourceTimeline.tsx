@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { closestApproach, timelineOverlays, transferOnDay } from '../lib/timeline'
 import { CONSUMABLE_KEYS, type MissionPlan, type SimResult } from '../lib/types'
 import { EChart, type EChartOption } from './EChart'
 import { fmt } from './format'
@@ -14,6 +15,9 @@ type Props = {
 type TooltipParam = { seriesName?: string; value?: unknown; color?: string }
 
 const SPARES_SERIES = 'Spares'
+const DISTANCE_SERIES = 'Earth–Mars'
+/** Height of the distance strip under the resource chart, px. */
+const STRIP_H = 56
 
 function timelineOption(result: SimResult, plan: MissionPlan): EChartOption {
   const colors = resourceColors()
@@ -23,6 +27,20 @@ function timelineOption(result: SimResult, plan: MissionPlan): EChartOption {
   const days = Array.from({ length: result.durationDays }, (_, i) => i)
   const labelOf = new Map(plan.flights.map((f) => [f.id, f.label]))
   const named = new Set<string>([...CONSUMABLE_KEYS.map((k) => RESOURCE_LABELS[k]), SPARES_SERIES])
+  const accent = cssVar('--accent')
+  const overlays = timelineOverlays(plan)
+  const distance = overlays.distanceMkm
+  const closest = distance ? closestApproach(distance) : null
+
+  // Launch windows: shaded on both grids so they line up; labelled once, on the resource chart.
+  const windowArea = (labelled: boolean) => ({
+    silent: true,
+    itemStyle: { color: accent, opacity: 0.08 },
+    label: labelled
+      ? { show: true, position: 'insideTop', color: accent, fontFamily: mono, fontSize: 12 }
+      : { show: false },
+    data: overlays.windows.map((w) => [{ xAxis: w.startDay, name: w.label }, { xAxis: w.endDay }]),
+  })
 
   // Zero line plus a vertical marker for every flight that lands mid-mission.
   const markLine = {
@@ -53,7 +71,14 @@ function timelineOption(result: SimResult, plan: MissionPlan): EChartOption {
     backgroundColor: 'transparent',
     animation: false,
     textStyle: { color: cssVar('--chart-axis'), fontFamily: mono, fontSize: 13 },
-    grid: { left: 56, right: 48, top: 40, bottom: 32 },
+    // With a distance strip: resource grid on top, a thin strip below sharing the day axis.
+    grid: distance
+      ? [
+          { left: 56, right: 48, top: 40, bottom: STRIP_H + 62 },
+          { left: 56, right: 48, height: STRIP_H, bottom: 30 },
+        ]
+      : [{ left: 56, right: 48, top: 40, bottom: 32 }],
+    axisPointer: { link: [{ xAxisIndex: 'all' }] },
     tooltip: {
       trigger: 'axis',
       backgroundColor: cssVar('--bg-raised'),
@@ -69,17 +94,41 @@ function timelineOption(result: SimResult, plan: MissionPlan): EChartOption {
             const unit = p.seriesName === SPARES_SERIES ? '' : ' kg'
             return `<span style="color:${p.color}">■</span> ${p.seriesName} ${fmt(Number(p.value))}${unit}`
           })
-        return [`D${day} · median`, ...rows].join('<br/>')
+        const d = Number(day)
+        if (distance && distance[d] !== null)
+          rows.push(`${DISTANCE_SERIES} ${fmt(distance[d]!)} M km`)
+        const transfer = transferOnDay(plan, d)
+        if (transfer && transfer.payloadFactor > 0) {
+          rows.push(
+            `Launch today → ${transfer.transitDays} d transit · ${Math.round(transfer.payloadFactor * 100)}% payload`,
+          )
+        }
+        return [`D${d} · median`, ...rows].join('<br/>')
       },
     },
-    xAxis: {
-      type: 'category',
-      data: days,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: rule } },
-      axisTick: { show: false },
-      axisLabel: { interval: 149, formatter: (d: string) => `D${d}` },
-    },
+    xAxis: [
+      {
+        type: 'category',
+        data: days,
+        boundaryGap: false,
+        axisLine: { lineStyle: { color: rule } },
+        axisTick: { show: false },
+        axisLabel: { interval: 149, formatter: (d: string) => `D${d}` },
+      },
+      ...(distance
+        ? [
+            {
+              type: 'category',
+              gridIndex: 1,
+              data: days,
+              boundaryGap: false,
+              axisLine: { lineStyle: { color: rule } },
+              axisTick: { show: false },
+              axisLabel: { show: false },
+            },
+          ]
+        : []),
+    ],
     yAxis: [
       {
         type: 'value',
@@ -96,6 +145,23 @@ function timelineOption(result: SimResult, plan: MissionPlan): EChartOption {
         minInterval: 1,
         splitLine: { show: false },
       },
+      ...(distance
+        ? [
+            {
+              type: 'value',
+              gridIndex: 1,
+              name: 'M km',
+              nameLocation: 'middle',
+              nameGap: 40,
+              nameTextStyle: { color: muted },
+              min: 0,
+              max: 'dataMax',
+              splitNumber: 1,
+              axisLabel: { formatter: (v: number) => fmt(v), fontSize: 11, showMaxLabel: false },
+              splitLine: { show: false },
+            },
+          ]
+        : []),
     ],
     series: [
       ...CONSUMABLE_KEYS.flatMap((key, i) => {
@@ -129,7 +195,7 @@ function timelineOption(result: SimResult, plan: MissionPlan): EChartOption {
             symbol: 'none',
             lineStyle: { color, width: 1.5 },
             itemStyle: { color },
-            ...(i === 0 ? { markLine } : {}),
+            ...(i === 0 ? { markLine, markArea: windowArea(true) } : {}),
           },
         ]
       }),
@@ -143,13 +209,62 @@ function timelineOption(result: SimResult, plan: MissionPlan): EChartOption {
         lineStyle: { color: colors.spares, width: 1.5, type: 'dashed' },
         itemStyle: { color: colors.spares },
       },
+      ...(distance
+        ? [
+            {
+              type: 'line',
+              name: DISTANCE_SERIES,
+              xAxisIndex: 1,
+              yAxisIndex: 2,
+              data: distance,
+              symbol: 'none',
+              lineStyle: { color: muted, width: 1.5 },
+              itemStyle: { color: muted },
+              markArea: windowArea(false),
+              markPoint: closest
+                ? {
+                    silent: true,
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    itemStyle: { color: muted },
+                    label: {
+                      position: 'bottom',
+                      formatter: `Closest · ${Math.round(closest.mkm)} M km`,
+                      color: muted,
+                      fontFamily: mono,
+                      fontSize: 12,
+                    },
+                    data: [{ coord: [closest.day, closest.mkm] }],
+                  }
+                : undefined,
+              // Launch → landing for each mid-mission flight, drawn along the distance curve.
+              markLine: {
+                silent: true,
+                symbol: ['circle', 'arrow'],
+                symbolSize: [5, 9],
+                lineStyle: { color: accent, width: 1.5, type: 'solid' },
+                label: { show: false },
+                data: overlays.transits
+                  .filter((t) => t.launchDay >= 0 && distance[t.launchDay] !== null)
+                  .map((t) => [
+                    { coord: [t.launchDay, distance[t.launchDay]] },
+                    { coord: [t.arrivalDay, distance[t.arrivalDay]] },
+                  ]),
+              },
+            },
+          ]
+        : []),
     ],
   }
 }
 
-/** P50 line + P10–P90 band per consumable (kg), median spare count (right axis), resupply markers. */
-export function ResourceTimeline({ result, plan, height = 250 }: Props) {
+/**
+ * P50 line + P10–P90 band per consumable (kg), median spare count (right axis), resupply markers,
+ * launch-window bands, and (Mars) an Earth–Mars distance strip with launch → landing arrows.
+ */
+export function ResourceTimeline({ result, plan, height = 300 }: Props) {
   const option = useMemo(() => timelineOption(result, plan), [result, plan])
+  const overlays = useMemo(() => timelineOverlays(plan), [plan])
   return (
     <>
       <div className="legend">
@@ -161,12 +276,24 @@ export function ResourceTimeline({ result, plan, height = 250 }: Props) {
         ))}
         <span className="legend-item">
           <span className="swatch swatch-spares swatch-dashed" aria-hidden="true" />
-          Spares (count)
+          Spares
         </span>
         <span className="legend-item">
           <span className="swatch swatch-marker" aria-hidden="true" />
-          Resupply lands
+          Landing
         </span>
+        {overlays.windows.length > 0 && (
+          <span className="legend-item">
+            <span className="swatch swatch-window" aria-hidden="true" />
+            Window
+          </span>
+        )}
+        {overlays.distanceMkm && (
+          <span className="legend-item">
+            <span className="swatch swatch-distance" aria-hidden="true" />
+            Distance
+          </span>
+        )}
       </div>
       <EChart option={option} height={height} />
     </>
