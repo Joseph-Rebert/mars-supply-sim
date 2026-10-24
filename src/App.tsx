@@ -7,7 +7,7 @@ import { Panel } from './components/Panel'
 import { StatTile, type Tone } from './components/StatTile'
 import { cssVar, RESOURCE_LABELS, resourceColors } from './components/themeColors'
 import { fakePlan, fakeResult } from './lib/fake'
-import { runBlockedReason, withFlightLaunchDate, withFlightsAtBestDates } from './lib/launchDates'
+import { runBlockedReason, withFlightLaunchDate } from './lib/launchDates'
 import { CONSUMABLE_KEYS, type SimResult } from './lib/types'
 
 // App state is one MissionPlan edited by the setup form. Results are placeholders from fakeResult()
@@ -93,8 +93,7 @@ function timelineOption(result: SimResult): EChartOption {
 }
 
 function App() {
-  // Flights start on the best date of their nearest launch window (GEA-41).
-  const [plan, setPlan] = useState(() => withFlightsAtBestDates(fakePlan()))
+  const [plan, setPlan] = useState(fakePlan)
   // Placeholder results stay fixed until the real runner (GEA-22) and results view (GEA-27) land.
   const result = useMemo(() => fakeResult(), [])
   const option = useMemo(() => timelineOption(result), [result])
