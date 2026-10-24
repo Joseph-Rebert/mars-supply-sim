@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest'
+import { MARS_BASE_PAYLOAD_KG, MOON_BASE_PAYLOAD_KG } from './data'
+import { fakePlan } from './fake'
 import {
   cargoArrivals,
+  defaultLaunchDates,
   flightCapacity,
   flightMassKg,
+  massStatus,
   overCapacityFlights,
   totalLaunchMassKg,
+  withDefaultFlights,
+  withFlightAdded,
+  withFlightRemoved,
+  withFlightUpdated,
 } from './manifest'
+import { withDestination } from './plan'
 import type { CargoFlight, MissionPlan } from './types'
 
 const flight = (id: string, launchDate: string): CargoFlight => ({
@@ -90,5 +99,127 @@ describe('cargoArrivals', () => {
       ['2028-12-04', -28],
       ['2029-03-04', 62],
     ])
+  })
+})
+
+describe('massStatus', () => {
+  const cap = (massKg: number, capacityKg: number) => ({
+    ...flightCapacity(plan('mars', [flight('f1', '2028-12-11')]), flight('f1', '2028-12-11')),
+    massKg,
+    capacityKg,
+    overCapacity: massKg > capacityKg,
+  })
+
+  it('turns amber at 90% of capacity and red only when over', () => {
+    expect(massStatus(cap(8999, 10_000))).toBe('ok')
+    expect(massStatus(cap(9000, 10_000))).toBe('caution')
+    expect(massStatus(cap(10_000, 10_000))).toBe('caution')
+    expect(massStatus(cap(10_001, 10_000))).toBe('over')
+    expect(massStatus(cap(0, 0))).toBe('ok')
+  })
+})
+
+// fakePlan(): Mars, starts 2029-09-01, 900 days; flights launch 2028-12-11, 2028-12-18, 2031-01-25.
+describe('defaultLaunchDates', () => {
+  it('Mars: lands before the crew, then resupplies at each best date that lands in time', () => {
+    // Window best dates → arrival day relative to 2029-09-01 (transfers-mars.json):
+    //   2028-12-11 → 2029-07-19 (day −44)   initial landing
+    //   2031-01-25 → 2031-11-21 (day 811)   < 900, resupply
+    //   2033-04-28 → 2034-01-28 (day 1610)  too late
+    const p = fakePlan()
+    expect(defaultLaunchDates(p)).toEqual(['2028-12-11', '2031-01-25'])
+    expect(defaultLaunchDates({ ...p, durationDays: 730 })).toEqual(['2028-12-11'])
+    expect(defaultLaunchDates({ ...p, durationDays: 1700 })).toEqual([
+      '2028-12-11',
+      '2031-01-25',
+      '2033-04-28',
+    ])
+  })
+
+  it('Moon: lands on day 0, then every 180 days (launch 3 days ahead)', () => {
+    const p = { ...fakePlan(), destination: 'moon' as const, durationDays: 400 }
+    expect(defaultLaunchDates(p)).toEqual(['2029-08-29', '2030-02-25', '2030-08-24'])
+  })
+})
+
+describe('withDefaultFlights', () => {
+  it('keeps cargo in order; flights beyond the last slot share its date', () => {
+    const before = fakePlan()
+    const p = withDefaultFlights(before)
+    expect(p.flights.map((f) => f.launchDate)).toEqual(['2028-12-11', '2031-01-25', '2031-01-25'])
+    expect(p.flights.map((f) => f.consumablesKg)).toEqual(
+      before.flights.map((f) => f.consumablesKg),
+    )
+    expect(before.flights[1].launchDate).toBe('2028-12-18') // input not mutated
+  })
+
+  it('adds empty resupplies for new slots', () => {
+    const p = withDefaultFlights({
+      ...fakePlan(),
+      durationDays: 1700,
+      flights: [fakePlan().flights[0]],
+    })
+    expect(p.flights.map((f) => [f.id, f.label, f.launchDate])).toEqual([
+      ['f1', 'Cargo lander 1', '2028-12-11'],
+      ['f2', 'Resupply 1', '2031-01-25'],
+      ['f3', 'Resupply 2', '2033-04-28'],
+    ])
+    expect(flightMassKg(p.flights[2])).toBe(0)
+  })
+})
+
+describe('withDestination', () => {
+  it('switches the vehicle payload and re-snaps flights to the Moon cadence', () => {
+    const p = withDestination(fakePlan(), 'moon')
+    expect(p.baseVehiclePayloadKg).toBe(MOON_BASE_PAYLOAD_KG)
+    // 900 days: landings on days 0, 180, 360, 540, 720.
+    expect(p.flights.map((f) => f.launchDate)).toEqual([
+      '2029-08-29',
+      '2030-02-25',
+      '2030-08-24',
+      '2031-02-20',
+      '2031-08-19',
+    ])
+    expect(overCapacityFlights(p)).toEqual([])
+  })
+
+  it('switches back to Mars window dates and payload', () => {
+    const p = withDestination(withDestination(fakePlan(), 'moon'), 'mars')
+    expect(p.baseVehiclePayloadKg).toBe(MARS_BASE_PAYLOAD_KG)
+    expect(p.flights.every((f) => ['2028-12-11', '2031-01-25'].includes(f.launchDate))).toBe(true)
+  })
+})
+
+describe('adding, removing and editing flights', () => {
+  it('adds an empty resupply in the next window that lands in time', () => {
+    const p = withFlightAdded({ ...fakePlan(), durationDays: 1700 })
+    expect(p.flights.at(-1)).toMatchObject({
+      id: 'f4',
+      label: 'Resupply 2',
+      launchDate: '2033-04-28',
+    })
+    expect(flightMassKg(p.flights.at(-1)!)).toBe(0)
+  })
+
+  it('adds alongside the last flight when no later window lands in time', () => {
+    expect(withFlightAdded(fakePlan()).flights.at(-1)?.launchDate).toBe('2031-01-25')
+  })
+
+  it('removes any flight but keeps at least one', () => {
+    const p = withFlightRemoved(fakePlan(), 'f2')
+    expect(p.flights.map((f) => f.id)).toEqual(['f1', 'f3'])
+    const one = { ...fakePlan(), flights: [fakePlan().flights[0]] }
+    expect(withFlightRemoved(one, 'f1')).toBe(one)
+  })
+
+  it('updates one flight without touching the others', () => {
+    const before = fakePlan()
+    const p = withFlightUpdated(before, 'f3', (f) => ({
+      ...f,
+      spares: { ...f.spares, waterRecycler: 9 },
+    }))
+    expect(p.flights[2].spares.waterRecycler).toBe(9)
+    expect(p.flights[0]).toBe(before.flights[0])
+    expect(before.flights[2].spares.waterRecycler).toBe(2)
   })
 })
