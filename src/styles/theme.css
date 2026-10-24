@@ -93,9 +93,10 @@ p {
 /* ---------- Layout ---------- */
 
 .app {
-  min-height: 100vh;
+  /* Header, tabs, the active tab (scrolls), and the stats strip, which never leaves the screen. */
+  height: 100vh;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   /* An auto column would grow to the header's full width; keep it to the viewport. */
   grid-template-columns: minmax(0, 1fr);
 }
@@ -1339,12 +1340,12 @@ p {
   color-scheme: dark;
 }
 
-.crew-table {
+.wiz-crew-table {
   display: grid;
   gap: 6px;
 }
 
-.crew-row {
+.wiz-crew-row {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) 60px repeat(3, minmax(0, 0.8fr)) minmax(0, 1.1fr) minmax(
       0,
@@ -1354,7 +1355,7 @@ p {
   align-items: center;
 }
 
-.crew-head {
+.wiz-crew-head {
   font-family: var(--mono);
   font-size: 12px;
   letter-spacing: var(--track);
@@ -1363,11 +1364,11 @@ p {
 }
 
 @media (max-width: 720px) {
-  .crew-row {
+  .wiz-crew-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .crew-head {
+  .wiz-crew-head {
     display: none;
   }
 }
@@ -1437,4 +1438,206 @@ p {
 .crew-info {
   color: var(--accent);
   cursor: help;
+}
+
+/* ---------- UI overhaul (GEA-43): mission picker, tabs, stats strip ---------- */
+
+.mission-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mission-picker .preset-picker {
+  margin-left: 0;
+}
+
+/* The picker sits left; status and clock are pushed right. */
+.mission-picker + .app-status {
+  margin-left: auto;
+}
+
+.status-button {
+  font: inherit;
+  font-size: var(--fs-label);
+  background: transparent;
+  border: 1px solid var(--caution);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.status-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 var(--pad);
+  border-bottom: 1px solid var(--rule-strong);
+  overflow-x: auto;
+}
+
+.tab {
+  font: 700 var(--fs-label) / 1 var(--mono);
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 12px 16px;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-panel {
+  overflow: auto;
+  min-height: 0;
+}
+
+.tab-panel.is-stale .overview {
+  opacity: 0.4;
+}
+
+/* Overview: the timeline full width, then cause | fix side by side. */
+.overview-risk {
+  padding: 0 var(--pad) 12px;
+}
+
+.overview-risk .callout.is-critical {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 20px;
+}
+
+.overview-risk .callout-main {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.overview-risk .fix-section {
+  padding-top: 0;
+  padding-left: 20px;
+  border-top: 0;
+  border-left: 1px solid var(--rule);
+}
+
+.stats-strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px 24px;
+  padding: 8px var(--pad);
+  border-top: 3px double var(--rule-strong);
+  background: var(--bg);
+}
+
+.strip-survival {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.strip-survival-value {
+  font-size: 48px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.strip-survival-label {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.strip-stats {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-left: 1px solid var(--rule);
+}
+
+.strip-stats .stat-cell {
+  padding: 4px 12px;
+}
+
+.strip-stats .stat-cell:first-child {
+  padding-left: 12px;
+}
+
+.strip-stats .stat-value {
+  font-size: 20px;
+  white-space: nowrap;
+}
+
+@media (max-width: 960px) {
+  .app {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .tab-panel {
+    overflow: visible;
+  }
+
+  .overview-risk .callout.is-critical {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .overview-risk .fix-section {
+    padding-left: 0;
+    padding-top: 8px;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  /* Stacked, the strip is tall; at the end of the page rather than covering the content. */
+  .stats-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .strip-stats {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    border-left: 0;
+  }
+}
+
+.strip-stats .stat-label {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Full-width sliders are hard to use; the setup form keeps a comfortable measure. */
+.setup-panel > .setup-form {
+  max-width: 720px;
+}
+
+@media (max-width: 720px) {
+  .tabs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .tab {
+    padding: 10px 12px;
+  }
 }

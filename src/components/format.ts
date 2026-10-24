@@ -1,3 +1,5 @@
+import { DESTINATION_PROFILES } from '../lib/data'
+import type { Destination } from '../lib/types'
 import type { Tone } from './StatTile'
 
 /** Console-style thousands separator with a thin space: 10 550. */
@@ -18,4 +20,11 @@ export const TONE_LABEL: Record<Tone, string> = {
   nominal: '● Nominal',
   caution: '▲ Caution',
   critical: '▼ Critical',
+}
+
+/** One-way Earth ↔ destination light time, e.g. '3–22 min' (Mars) or '1.3 s' (Moon). */
+export function commsDelayLabel(destination: Destination): string {
+  const { min, max } = DESTINATION_PROFILES[destination].commsDelaySeconds
+  if (max < 60) return `${min.toFixed(1)} s`
+  return `${Math.round(min / 60)}–${Math.round(max / 60)} min`
 }
