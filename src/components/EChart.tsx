@@ -31,6 +31,7 @@ type Props = {
 }
 
 // Thin wrapper: one ECharts instance per mount, option updates in place, resizes with its container.
+// overflow: hidden lets the container shrink below the canvas's last width so ResizeObserver fires.
 export function EChart({ option, height = 320, className }: Props) {
   const el = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
@@ -52,5 +53,11 @@ export function EChart({ option, height = 320, className }: Props) {
     chart.current?.setOption(option, { notMerge: true })
   }, [option])
 
-  return <div ref={el} className={className} style={{ width: '100%', height }} />
+  return (
+    <div
+      ref={el}
+      className={className}
+      style={{ width: '100%', minWidth: 0, overflow: 'hidden', height }}
+    />
+  )
 }
