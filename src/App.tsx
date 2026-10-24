@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { EChart, type EChartOption } from './components/EChart'
+import { MissionSetupForm } from './components/MissionSetupForm'
 import { Panel } from './components/Panel'
 import { Readout } from './components/Readout'
 import { StatTile, type Tone } from './components/StatTile'
@@ -7,8 +8,8 @@ import { cssVar, RESOURCE_LABELS, resourceColors } from './components/themeColor
 import { fakePlan, fakeResult } from './lib/fake'
 import { CONSUMABLE_KEYS, type SimResult } from './lib/types'
 
-// Shell with placeholder content from fakePlan()/fakeResult(). The setup form (GEA-15), manifest
-// (GEA-16) and real results view (GEA-27) replace the section contents; layout and styles stay.
+// App state is one MissionPlan edited by the setup form. Results are placeholders from fakeResult()
+// until the runner (GEA-22) and results view (GEA-27) land; the manifest editor is GEA-16.
 
 const TONE_LABEL: Record<Tone, string> = {
   nominal: '● Nominal',
@@ -97,10 +98,10 @@ function timelineOption(result: SimResult): EChartOption {
 }
 
 function App() {
-  const plan = useMemo(() => fakePlan(), [])
-  const result = useMemo(() => fakeResult(plan), [plan])
+  const [plan, setPlan] = useState(fakePlan)
+  // Placeholder results stay fixed until the real runner (GEA-22) and results view (GEA-27) land.
+  const result = useMemo(() => fakeResult(), [])
   const option = useMemo(() => timelineOption(result), [result])
-  const [crew, setCrew] = useState(plan.crew.length)
 
   const tone = survivalTone(result.survivalRate)
 
@@ -111,43 +112,14 @@ function App() {
         <p className="app-subtitle">─ Mission survival planner</p>
         <div className="app-status">
           <span className="status-dot" aria-hidden="true" />
-          <span className="app-status-text">Preview · placeholder data</span>
+          <span className="app-status-text">Preview · placeholder results</span>
         </div>
       </header>
 
       <main className="layout">
         <div className="column">
           <Panel title="Mission setup">
-            <div className="field">
-              <div className="field-row">
-                <label className="field-label" htmlFor="crew">
-                  Crew
-                </label>
-                <span className="field-value">{String(crew).padStart(2, '0')}</span>
-              </div>
-              <input
-                id="crew"
-                className="slider"
-                type="range"
-                min={2}
-                max={8}
-                value={crew}
-                onChange={(e) => setCrew(Number(e.target.value))}
-              />
-            </div>
-            <div className="readouts">
-              <Readout label="Duration" value={`${plan.durationDays} d`} />
-              <Readout label="Destination" value={plan.destination} />
-              <Readout
-                label="Recovery"
-                value={`${Math.round(plan.lifeSupport.waterRecoveryRate * 100)} %`}
-              />
-              <Readout label="O₂ source" value={plan.lifeSupport.o2Source} />
-            </div>
-            <p className="note">Full setup form arrives with GEA-15.</p>
-            <button className="btn btn-primary btn-block" type="button" disabled>
-              Execute run
-            </button>
+            <MissionSetupForm plan={plan} onChange={setPlan} />
           </Panel>
           <Panel title="Cargo manifest">
             <div className="readouts">
