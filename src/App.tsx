@@ -1,57 +1,151 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { EChart, type EChartOption } from './components/EChart'
-import { mulberry32 } from './lib/rng'
+import { Panel } from './components/Panel'
+import { StatTile, type Tone } from './components/StatTile'
+import { cssVar, RESOURCE_LABELS, resourceColors } from './components/themeColors'
+import { fakeResult } from './lib/fake'
+import { CONSUMABLE_KEYS, type SimResult } from './lib/types'
 
-// Placeholder shell proving the pipeline (React + ECharts + theme + deploy) works.
-// Replaced by the real layout in GEA-10 / GEA-27.
-function smokeTestOption(): EChartOption {
-  const rng = mulberry32(7)
-  const days = Array.from({ length: 120 }, (_, i) => i)
-  const p50 = days.map((d) => 100 - d * 0.6 + (rng() - 0.5) * 4)
-  const p10 = p50.map((v, i) => v - 4 - i * 0.12)
-  const p90 = p50.map((v, i) => v + 4 + i * 0.12)
+// Shell with placeholder content from fakeResult(). The setup form (GEA-15) and the real results
+// view (GEA-27) replace the panel contents; the layout and styles stay.
+
+function survivalTone(rate: number): Tone {
+  if (rate >= 0.9) return 'nominal'
+  if (rate >= 0.7) return 'caution'
+  return 'critical'
+}
+
+function timelineOption(result: SimResult): EChartOption {
+  const colors = resourceColors()
+  const axis = cssVar('--chart-axis')
+  const grid = cssVar('--chart-grid')
+  const days = Array.from({ length: result.durationDays }, (_, i) => i)
 
   return {
     backgroundColor: 'transparent',
-    textStyle: { color: '#8b98a9', fontFamily: 'ui-monospace, monospace' },
-    grid: { left: 48, right: 16, top: 24, bottom: 32 },
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: days, name: 'day', boundaryGap: false },
-    yAxis: { type: 'value', name: 'water (kg)', splitLine: { lineStyle: { color: '#263040' } } },
-    series: [
-      // P10–P90 band: invisible lower bound, then the band height stacked on top
-      { type: 'line', data: p10, stack: 'band', lineStyle: { opacity: 0 }, symbol: 'none' },
-      {
-        type: 'line',
-        data: p90.map((v, i) => v - p10[i]),
-        stack: 'band',
-        lineStyle: { opacity: 0 },
-        areaStyle: { color: '#39c5cf', opacity: 0.2 },
-        symbol: 'none',
-      },
-      { type: 'line', data: p50, symbol: 'none', lineStyle: { color: '#39c5cf', width: 2 } },
-    ],
+    textStyle: { color: axis, fontFamily: cssVar('--mono'), fontSize: 14 },
+    grid: { left: 64, right: 16, top: 24, bottom: 40 },
+    tooltip: { trigger: 'axis', valueFormatter: (v: unknown) => `${Math.round(Number(v))} kg` },
+    xAxis: {
+      type: 'category',
+      data: days,
+      name: 'day',
+      boundaryGap: false,
+      axisLine: { lineStyle: { color: grid } },
+    },
+    yAxis: { type: 'value', name: 'kg', splitLine: { lineStyle: { color: grid } } },
+    series: CONSUMABLE_KEYS.flatMap((key) => {
+      const { p10, p50, p90 } = result.bands[key]
+      const color = colors[key]
+      const name = RESOURCE_LABELS[key]
+      // P10–P90 band: invisible lower bound, then the band height stacked on top.
+      return [
+        {
+          type: 'line',
+          data: p10,
+          stack: key,
+          symbol: 'none',
+          lineStyle: { opacity: 0 },
+          silent: true,
+        },
+        {
+          type: 'line',
+          data: p90.map((v, i) => v - p10[i]),
+          stack: key,
+          symbol: 'none',
+          lineStyle: { opacity: 0 },
+          areaStyle: { color, opacity: 0.18 },
+          silent: true,
+        },
+        { type: 'line', name, data: p50, symbol: 'none', lineStyle: { color, width: 2 } },
+      ]
+    }),
   }
 }
 
 function App() {
-  const option = useMemo(() => smokeTestOption(), [])
+  const result = useMemo(() => fakeResult(), [])
+  const option = useMemo(() => timelineOption(result), [result])
+  const [crew, setCrew] = useState(4)
+
+  const pct = Math.round(result.survivalRate * 100)
 
   return (
-    <main style={{ maxWidth: 1100, margin: '0 auto', padding: 24, display: 'grid', gap: 16 }}>
-      <header>
-        <h1 className="mono">ARES SUPPLY</h1>
-        <p className="muted">
-          Will this crew survive — and what should we change so they do? (scaffold, GEA-5)
-        </p>
+    <div className="app">
+      <header className="app-header">
+        <h1 className="app-title">
+          ARES <span className="app-title-accent">SUPPLY</span>
+        </h1>
+        <p className="app-tagline">Will this crew survive, and what should we change so they do?</p>
+        <div className="app-status">
+          <span className="status-dot" aria-hidden="true" />
+          <span className="app-status-text">PREVIEW · PLACEHOLDER DATA</span>
+        </div>
       </header>
-      <section className="panel">
-        <h2 style={{ fontSize: 14 }} className="muted mono">
-          CHART SMOKE TEST — fake data
-        </h2>
-        <EChart option={option} />
-      </section>
-    </main>
+
+      <main className="layout">
+        <div className="column">
+          <Panel title="Mission setup">
+            <div className="field">
+              <div className="field-row">
+                <label className="field-label" htmlFor="crew">
+                  Crew size
+                </label>
+                <span className="field-value">{crew} people</span>
+              </div>
+              <input
+                id="crew"
+                className="slider"
+                type="range"
+                min={2}
+                max={8}
+                value={crew}
+                onChange={(e) => setCrew(Number(e.target.value))}
+              />
+            </div>
+            <p className="muted">Full setup form arrives with GEA-15.</p>
+            <button className="btn btn-primary btn-block" type="button" disabled>
+              Run mission
+            </button>
+          </Panel>
+          <Panel title="Cargo manifest">
+            <p className="muted">Launch windows and mass budget arrive with GEA-16.</p>
+          </Panel>
+        </div>
+
+        <div className="column">
+          <div className="stat-row">
+            <StatTile
+              hero
+              label="chance the crew survives"
+              value={`${pct}`}
+              unit="%"
+              tone={survivalTone(result.survivalRate)}
+            />
+          </div>
+          <div className="stat-row">
+            <StatTile
+              label="total launch mass"
+              value={Math.round(result.totalLaunchMassKg).toLocaleString('en-US')}
+              unit="kg"
+            />
+            <StatTile label="mission length" value={`${result.durationDays}`} unit="days" />
+            <StatTile label="simulated runs" value={result.runs.toLocaleString('en-US')} />
+          </div>
+          <Panel title="Resource timeline · P10–P90">
+            <div className="legend">
+              {CONSUMABLE_KEYS.map((key) => (
+                <span key={key} className="legend-item">
+                  <span className={`swatch swatch-${key}`} aria-hidden="true" />
+                  {RESOURCE_LABELS[key]}
+                </span>
+              ))}
+            </div>
+            <EChart option={option} height={260} />
+          </Panel>
+        </div>
+      </main>
+    </div>
   )
 }
 
