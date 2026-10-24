@@ -1,16 +1,16 @@
 import { useMemo, useState } from 'react'
+import { CargoManifest } from './components/CargoManifest'
 import { fmt } from './components/format'
-import { LaunchDatePicker } from './components/LaunchDatePicker'
 import { MissionSetupForm } from './components/MissionSetupForm'
 import { Panel } from './components/Panel'
 import { ResultsView } from './components/ResultsView'
 import { fakePlan } from './lib/fake'
-import { runBlockedReason, withFlightLaunchDate } from './lib/launchDates'
+import { runBlockedReason } from './lib/launchDates'
 import { DEFAULT_RUN_OPTIONS, runMission } from './lib/sim'
 import type { MissionPlan, SimResult } from './lib/types'
 
 // App state: the plan being edited, and the last run (with the plan that produced it, so the
-// results never silently describe a different plan). Manifest line items + mass bar are GEA-16.
+// results never silently describe a different plan).
 
 type Run = { plan: MissionPlan; result: SimResult }
 
@@ -50,15 +50,7 @@ function App() {
             />
           </Panel>
           <Panel title="Cargo manifest">
-            {plan.flights.map((f) => (
-              <LaunchDatePicker
-                key={f.id}
-                plan={plan}
-                flight={f}
-                onChange={(date) => setPlan((p) => withFlightLaunchDate(p, f.id, date))}
-              />
-            ))}
-            <p className="note">Line items and the mass budget bar arrive with GEA-16.</p>
+            <CargoManifest plan={plan} onChange={setPlan} />
           </Panel>
         </div>
 
