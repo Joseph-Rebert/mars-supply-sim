@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mulberry32 } from './rng'
-import { dailyRates, runOnce } from './sim'
+import { arrivalDay, dailyRates, runOnce } from './sim'
 import type { CrewMember, LifeSupportConfig, MissionPlan } from './types'
 
 const CREW: CrewMember[] = [1, 2, 3, 4].map((n) => ({
@@ -34,13 +34,15 @@ function plan(
       {
         id: 'f1',
         label: 'Initial',
-        launchDate: '2029-06-01',
+        // Best date of the 2028 window: lands 2029-07-19, before the 2030-01-01 start.
+        launchDate: '2028-12-11',
         consumablesKg: { o2: 100, water: 1000, food: 1000, ...stock },
         spares: { waterRecycler: 2, o2Generator: 1, co2Scrubber: 1, greenhouse: 0 },
       },
       {
         id: 'f2',
-        label: 'Launches after start (GEA-19 will schedule it)',
+        // Mars: lands 2030-09-02 (day 244), after a 100-day mission. Moon: lands day 62.
+        label: 'Lands after the mission ends (Mars)',
         launchDate: '2030-03-01',
         consumablesKg: { o2: 999, water: 999, food: 999 },
         spares: { waterRecycler: 9, o2Generator: 9, co2Scrubber: 9, greenhouse: 9 },
@@ -73,7 +75,7 @@ describe('runOnce, all systems online', () => {
     for (const series of Object.values(r.stocks)) expect(series).toHaveLength(100)
   })
 
-  it('counts only cargo launched before the start as initial stock', () => {
+  it('counts only cargo landed by the start as initial stock', () => {
     expect(r.stocks.spares[0]).toBe(4)
     expect(r.stocks.spares[99]).toBe(4)
   })
@@ -126,6 +128,46 @@ describe('runOnce, destination profiles', () => {
       const p = plan({ o2Source })
       expect(dailyRates(onMoon(p))).toEqual(dailyRates(p))
     }
+  })
+})
+
+describe('runOnce, resupply arrivals', () => {
+  // 4 crew eat 7.84 kg food/day. 3,137 kg lasts through day 399 (1.0 kg left), runs out on day 400.
+  const starving = (flights: MissionPlan['flights'] = []): MissionPlan => {
+    const p = plan({}, { food: 3137, water: 5000 }, 500)
+    return { ...p, destination: 'moon', flights: [p.flights[0], ...flights] }
+  }
+  const foodFlight = (launchDate: string, food = 1000): MissionPlan['flights'][number] => ({
+    id: 'resupply',
+    label: 'Food',
+    launchDate,
+    consumablesKg: { o2: 0, water: 0, food },
+    spares: { waterRecycler: 1, o2Generator: 0, co2Scrubber: 0, greenhouse: 0 },
+  })
+
+  it('starves on day 400 without resupply', () => {
+    expect(run(starving()).failure).toEqual({ kind: 'stockout', resource: 'food', day: 400 })
+  })
+
+  it('survives when food lands on day 390 (Moon: launch day 387 + 3-day transit)', () => {
+    const r = run(starving([foodFlight('2031-01-23')]))
+    expect(r.survived).toBe(true)
+    // Food jumps by 1,000 kg on day 390; one spare arrives with it.
+    expect(r.stocks.food[390] - r.stocks.food[389]).toBeCloseTo(1000 - 7.84, 6)
+    expect(r.stocks.spares[389]).toBe(4)
+    expect(r.stocks.spares[390]).toBe(5)
+  })
+
+  it('still starves if the same food lands after day 400', () => {
+    const r = run(starving([foodFlight('2031-02-07')])) // lands day 405
+    expect(r.failure).toEqual({ kind: 'stockout', resource: 'food', day: 400 })
+  })
+
+  it('lands Mars cargo on the transfer-table arrival date', () => {
+    // 2028-12-11 → 2029-07-19 (220 d); a mission starting 2029-01-01 sees it on day 199.
+    const p = { ...plan(), startDate: '2029-01-01', durationDays: 300 }
+    expect(arrivalDay(p, p.flights[0])).toBe(199)
+    expect(arrivalDay(p, { ...p.flights[0], launchDate: '2030-03-01' })).toBeNull()
   })
 })
 
