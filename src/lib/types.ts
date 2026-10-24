@@ -44,6 +44,8 @@ export type ComponentSpec = {
 export type CrewMember = {
   id: string
   name: string
+  /** Job on the crew, for the roster card. Display only. */
+  role?: string
   sex: 'female' | 'male'
   ageYears: number
   massKg: number

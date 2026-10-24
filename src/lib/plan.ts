@@ -21,6 +21,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
   {
     id: 'c1',
     name: 'Reyes',
+    role: 'Commander',
     sex: 'female',
     ageYears: 41,
     massKg: 62,
@@ -31,6 +32,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
   {
     id: 'c2',
     name: 'Okafor',
+    role: 'Flight engineer',
     sex: 'male',
     ageYears: 38,
     massKg: 81,
@@ -41,6 +43,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
   {
     id: 'c3',
     name: 'Lindqvist',
+    role: 'Medical officer',
     sex: 'female',
     ageYears: 35,
     massKg: 58,
@@ -51,6 +54,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
   {
     id: 'c4',
     name: 'Tanaka',
+    role: 'Life support engineer',
     sex: 'male',
     ageYears: 46,
     massKg: 74,
@@ -61,6 +65,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
   {
     id: 'c5',
     name: 'Haddad',
+    role: 'Geologist',
     sex: 'female',
     ageYears: 39,
     massKg: 66,
@@ -71,6 +76,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
   {
     id: 'c6',
     name: 'Novak',
+    role: 'Pilot',
     sex: 'male',
     ageYears: 43,
     massKg: 85,
@@ -81,6 +87,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
   {
     id: 'c7',
     name: 'Mensah',
+    role: 'Botanist',
     sex: 'male',
     ageYears: 36,
     massKg: 77,
@@ -91,6 +98,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
   {
     id: 'c8',
     name: 'Ibarra',
+    role: 'Systems engineer',
     sex: 'female',
     ageYears: 44,
     massKg: 60,
@@ -115,6 +123,32 @@ export function withCrewSize(plan: MissionPlan, size: number): MissionPlan {
   const ids = new Set(kept.map((c) => c.id))
   const added = CREW_ROSTER.filter((c) => !ids.has(c.id)).slice(0, n - kept.length)
   return { ...plan, crew: [...kept, ...added] }
+}
+
+/** Editable ranges for a crew card (UI only; the sim accepts any value). */
+export const CREW_LIMITS = {
+  ageYears: { min: 25, max: 65, step: 1 },
+  massKg: { min: 45, max: 120, step: 1 },
+  heightM: { min: 1.5, max: 2.0, step: 0.01 },
+  exerciseMinPerDay: { min: 0, max: 180, step: 15 },
+} as const
+
+type CrewNumberField = keyof typeof CREW_LIMITS
+
+/** Updates one crew member, clamping numeric fields to CREW_LIMITS. */
+export function withCrewMemberUpdated(
+  plan: MissionPlan,
+  id: string,
+  patch: Partial<Omit<CrewMember, 'id'>>,
+): MissionPlan {
+  const clamped = { ...patch }
+  for (const key of Object.keys(CREW_LIMITS) as CrewNumberField[]) {
+    const v = clamped[key]
+    if (v === undefined) continue
+    const { min, max } = CREW_LIMITS[key]
+    clamped[key] = Math.min(max, Math.max(min, v))
+  }
+  return { ...plan, crew: plan.crew.map((m) => (m.id === id ? { ...m, ...clamped } : m)) }
 }
 
 /** Switches destination: its vehicle payload, and each flight moved to the default date nearest its landing. */
