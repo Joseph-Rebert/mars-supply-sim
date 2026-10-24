@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mulberry32, type Rng } from './rng'
 import { describeFailure } from './analysis'
 import { COMPONENTS } from './data'
-import { dailyRates, runOnce } from './sim'
+import { arrivalDay, dailyRates, runOnce } from './sim'
 import type { CrewMember, LifeSupportConfig, MissionPlan } from './types'
 
 const CREW: CrewMember[] = [1, 2, 3, 4].map((n) => ({
