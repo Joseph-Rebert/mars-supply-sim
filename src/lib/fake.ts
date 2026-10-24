@@ -37,6 +37,7 @@ export function fakePlan(): MissionPlan {
         massKg: 62,
         activity: 'moderate',
         exerciseMinPerDay: 120,
+        heightM: 1.65,
       },
       {
         id: 'c2',
@@ -46,6 +47,7 @@ export function fakePlan(): MissionPlan {
         massKg: 81,
         activity: 'heavy',
         exerciseMinPerDay: 120,
+        heightM: 1.83,
       },
       {
         id: 'c3',
@@ -55,6 +57,7 @@ export function fakePlan(): MissionPlan {
         massKg: 58,
         activity: 'moderate',
         exerciseMinPerDay: 90,
+        heightM: 1.7,
       },
       {
         id: 'c4',
@@ -64,6 +67,7 @@ export function fakePlan(): MissionPlan {
         massKg: 74,
         activity: 'light',
         exerciseMinPerDay: 90,
+        heightM: 1.72,
       },
     ],
     lifeSupport: {

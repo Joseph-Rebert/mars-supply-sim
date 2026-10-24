@@ -8,6 +8,7 @@ import {
   ELECTROLYSIS_WATER_KG_PER_KG_O2,
   GREENHOUSE_FOOD_KG_PER_M2_DAY,
 } from './data'
+import { crewFoodKgPerDay } from './crew'
 import { daysBetween } from './dates'
 import { cargoArrivals, totalLaunchMassKg } from './manifest'
 import { mulberry32, type Rng } from './rng'
@@ -47,7 +48,8 @@ export function dailyRates(plan: MissionPlan): DailyRates {
   const consumeKg = {
     o2: crew * CREW_NEEDS_KG_PER_CREW_DAY.o2,
     water: crew * CREW_NEEDS_KG_PER_CREW_DAY.water,
-    food: crew * CREW_NEEDS_KG_PER_CREW_DAY.food,
+    // Personal needs (GEA-17) when every crew member has a full profile; else the BVAD flat rate.
+    food: crewFoodKgPerDay(plan.crew) ?? crew * CREW_NEEDS_KG_PER_CREW_DAY.food,
   }
   const { waterRecoveryRate, o2Source, greenhouse } = plan.lifeSupport
   const profile = DESTINATION_PROFILES[plan.destination]
