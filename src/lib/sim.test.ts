@@ -7,6 +7,13 @@ import { cargoArrivals, overCapacityFlights, totalLaunchMassKg } from './manifes
 import { arrivalDay, dailyRates, percentileBand, quantile, runMission, runOnce } from './sim'
 import type { CrewMember, LifeSupportConfig, MissionPlan } from './types'
 
+/** CPU time of this test process in ms, so other test files running in parallel don't count. */
+declare const process: { cpuUsage(): { user: number; system: number } }
+const cpuMs = () => {
+  const { user, system } = process.cpuUsage()
+  return (user + system) / 1000
+}
+
 const CREW: CrewMember[] = [1, 2, 3, 4].map((n) => ({
   id: `c${n}`,
   name: `Crew ${n}`,
@@ -212,9 +219,10 @@ describe('runOnce, purity and speed', () => {
   it('runs a 900-day mission in under 1 ms (averaged over 1,000 runs)', () => {
     const p = plan({}, { water: 100_000, food: 100_000 }, 900)
     const rng = mulberry32(1)
-    const start = performance.now()
+    for (let i = 0; i < 50; i++) runOnce(p, rng) // warm up the JIT, as the other speed tests do
+    const start = cpuMs()
     for (let i = 0; i < 1000; i++) runOnce(p, rng)
-    expect((performance.now() - start) / 1000).toBeLessThan(1)
+    expect((cpuMs() - start) / 1000).toBeLessThan(1)
   })
 })
 
@@ -364,10 +372,10 @@ describe('runMission', () => {
     const mars = fakePlan()
     expect(mars.destination).toBe('mars')
     expect(mars.durationDays).toBe(900)
-    runMission(mars, { runs: 50, seed: 1 }) // warm up the JIT
-    const start = performance.now()
+    runMission(mars, { runs: 300, seed: 1 }) // warm up: let V8 finish optimizing before timing
+    const start = cpuMs()
     runMission(mars, { runs: 1000, seed: 1 })
-    expect(performance.now() - start).toBeLessThan(1000)
+    expect(cpuMs() - start).toBeLessThan(1000)
   })
 })
 
