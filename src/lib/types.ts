@@ -80,6 +80,8 @@ export type LifeSupportConfig = {
   waterRecoveryRate: number
   o2Source: O2Source
   greenhouse: { enabled: boolean; areaM2: number }
+  /** Daily vitamin C tablet for every crew member (GEA-32); its mass rides on the first flight. */
+  vitaminCSupplement?: boolean
 }
 
 /**

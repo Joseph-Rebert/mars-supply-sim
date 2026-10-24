@@ -159,7 +159,9 @@ export function runOnce(
   }
   const online = (c: ComponentKey) => installed[c] && downUntil[c] === ONLINE
   const events: ComponentEvent[] = []
-  const nutrition = createNutritionTracker(plan.crew)
+  const nutrition = createNutritionTracker(plan.crew, {
+    vitaminCSupplement: plan.lifeSupport.vitaminCSupplement,
+  })
   const health =
     nutrition &&
     createHealthTracker(plan.crew as CrewProfile[], DESTINATION_PROFILES[plan.destination].gravityG)

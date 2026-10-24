@@ -2,6 +2,7 @@
 
 import { weakestLink } from './analysis'
 import { COMPONENTS, SHIPPING_OVERHEAD_KG_PER_KG } from './data'
+import { supplementMassKg } from './manifest'
 import {
   COMPONENT_KEYS,
   CONSUMABLE_KEYS,
@@ -23,6 +24,8 @@ export function massByCategory(plan: MissionPlan): Record<ResourceKey, number> {
     }
     for (const c of COMPONENT_KEYS) out.spares += f.spares[c] * COMPONENTS[c].spareMassKg
   }
+  // Vitamin C tablets count as food.
+  out.food += supplementMassKg(plan)
   return out
 }
 
