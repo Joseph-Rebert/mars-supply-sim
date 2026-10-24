@@ -381,6 +381,11 @@ export function runMission(
   // when runs report health (full crew profiles).
   const weeks = Math.ceil(days / HEALTH_BAND_STEP_DAYS)
   const healthSamples = new Map<string, Float64Array>()
+  // End-of-run body state per crew member, one value per run, for the roster card medians.
+  const bodySamples = new Map<
+    string,
+    { bone: Float64Array; muscle: Float64Array; mass: Float64Array }
+  >()
 
   const failures: FailureCause[] = []
   let survived = 0
@@ -397,6 +402,20 @@ export function runMission(
       let out = healthSamples.get(id)
       if (!out) healthSamples.set(id, (out = new Float64Array(weeks * runs)))
       for (let w = 0; w < weeks; w++) out[w * runs + run] = series[w]
+    }
+    for (const [id, body] of Object.entries(result.body ?? {})) {
+      let out = bodySamples.get(id)
+      if (!out) {
+        out = {
+          bone: new Float64Array(runs),
+          muscle: new Float64Array(runs),
+          mass: new Float64Array(runs),
+        }
+        bodySamples.set(id, out)
+      }
+      out.bone[run] = body.boneLossPct
+      out.muscle[run] = body.muscleLossPct
+      out.mass[run] = body.massLossPct
     }
   }
 
@@ -416,6 +435,18 @@ export function runMission(
   if (healthSamples.size > 0) {
     sim.crewHealth = Object.fromEntries(
       [...healthSamples].map(([id, s]) => [id, holdDaily(percentileBand(s, weeks, runs), days)]),
+    )
+  }
+  if (bodySamples.size > 0) {
+    sim.crewBody = Object.fromEntries(
+      [...bodySamples].map(([id, s]) => [
+        id,
+        {
+          boneLossPct: quantileSelect(s.bone, 0.5),
+          muscleLossPct: quantileSelect(s.muscle, 0.5),
+          massLossPct: quantileSelect(s.mass, 0.5),
+        },
+      ]),
     )
   }
   return sim
