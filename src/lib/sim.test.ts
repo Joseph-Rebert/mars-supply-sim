@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { mulberry32 } from './rng'
+import { mulberry32, type Rng } from './rng'
+import { describeFailure } from './analysis'
+import { COMPONENTS } from './data'
 import { arrivalDay, dailyRates, runOnce } from './sim'
 import type { CrewMember, LifeSupportConfig, MissionPlan } from './types'
 
@@ -52,7 +54,15 @@ function plan(
   }
 }
 
-const run = (p: MissionPlan, seed = 1) => runOnce(p, mulberry32(seed))
+/** Rng that never triggers a failure (every roll is just under 1). */
+const neverFails: Rng = () => 0.999999
+/** Rng whose first `n` rolls are 0 (forced failures), then never fails. */
+function failFirst(n: number): Rng {
+  let calls = 0
+  return () => (calls++ < n ? 0 : 0.999999)
+}
+
+const run = (p: MissionPlan) => runOnce(p, neverFails)
 
 describe('runOnce, all systems online', () => {
   // Hand calculation, 4 crew, 100 days, 90% recovery, electrolysis, 10 m² greenhouse:
@@ -193,7 +203,7 @@ describe('runOnce, purity and speed', () => {
   it('is deterministic and does not mutate the plan', () => {
     const p = plan()
     const before = JSON.stringify(p)
-    expect(run(p, 7)).toEqual(run(p, 7))
+    expect(runOnce(p, mulberry32(7))).toEqual(runOnce(p, mulberry32(7)))
     expect(JSON.stringify(p)).toBe(before)
   })
 
@@ -203,5 +213,87 @@ describe('runOnce, purity and speed', () => {
     const start = performance.now()
     for (let i = 0; i < 1000; i++) runOnce(p, rng)
     expect((performance.now() - start) / 1000).toBeLessThan(1)
+  })
+})
+
+describe('runOnce, component failures', () => {
+  it('matches 1 / MTBF over 10,000 runs, within 5%', () => {
+    const p = plan(
+      { greenhouse: { enabled: true, areaM2: 10 } },
+      { o2: 1e7, water: 1e7, food: 1e7 },
+      365,
+    )
+    p.flights[0].spares = {
+      waterRecycler: 1e6,
+      o2Generator: 1e6,
+      co2Scrubber: 1e6,
+      greenhouse: 1e6,
+    }
+    const rng = mulberry32(42)
+    const failures = { waterRecycler: 0, o2Generator: 0, co2Scrubber: 0, greenhouse: 0 }
+    const runs = 10_000
+    for (let i = 0; i < runs; i++) {
+      for (const e of runOnce(p, rng).componentEvents)
+        if (e.type === 'failed') failures[e.component]++
+    }
+    for (const c of Object.keys(failures) as (keyof typeof failures)[]) {
+      // Trials = days the component was online when rolled; each failure costs repairDays offline.
+      const onlineDays = runs * 365 - failures[c] * COMPONENTS[c].repairDays
+      const rate = failures[c] / onlineDays
+      expect(Math.abs(rate * COMPONENTS[c].mtbfDays - 1)).toBeLessThan(0.05)
+    }
+  })
+
+  it('uses a spare and is back online after its repair time', () => {
+    // First roll (water recycler, day 0) fails; 2 recycler spares in stock.
+    const r = runOnce(plan(), failFirst(1))
+    expect(r.componentEvents).toEqual([
+      { day: 0, component: 'waterRecycler', type: 'failed', spareUsed: true },
+      { day: 1, component: 'waterRecycler', type: 'repaired' },
+    ])
+    expect(r.stocks.spares[0]).toBe(3)
+    // Day 0 has no recovery: 1000 − 17.92 − 4.0311 = 978.05; day 1 is back to −5.82312/day.
+    expect(r.stocks.water[0]).toBeCloseTo(978.049, 2)
+    expect(r.stocks.water[1]).toBeCloseTo(978.049 - 5.82312, 2)
+    expect(r.survived).toBe(true)
+  })
+
+  it('stays offline with no spares, drains the resource it supports, and says why', () => {
+    const p = plan()
+    p.flights[0].spares.waterRecycler = 0
+    // Recycler down for good from day 0: water/day = −17.92 − 4.0311 = −21.9512.
+    // 1000 kg lasts through day 44 (34.25 kg left) and runs out on day 45.
+    const r = runOnce(p, failFirst(1))
+    expect(r.componentEvents).toEqual([
+      { day: 0, component: 'waterRecycler', type: 'failed', spareUsed: false },
+    ])
+    expect(r.stocks.water[44]).toBeCloseTo(1000 - 45 * 21.95117, 1)
+    expect(r.failure).toEqual({
+      kind: 'stockout',
+      resource: 'water',
+      day: 45,
+      offlineComponent: 'waterRecycler',
+      awaitingSpare: true,
+    })
+    expect(describeFailure(r.failure!)).toBe(
+      'Water ran out on day 45 because the water recycler was offline with no spares',
+    )
+  })
+
+  it('fails the mission when the CO₂ scrubber is down past its grace period', () => {
+    const p = plan()
+    p.flights[0].spares.co2Scrubber = 0
+    // Rolls per day: waterRecycler, o2Generator, co2Scrubber. Fail the third roll (scrubber, day 0).
+    let calls = 0
+    const r = runOnce(p, () => (++calls === 3 ? 0 : 0.999999))
+    // Down on days 0, 1, 2, 3 (grace = 3 days) → fails on day 3.
+    expect(r.failure).toEqual({ kind: 'systemDown', component: 'co2Scrubber', day: 3 })
+    expect(describeFailure(r.failure!)).toContain('CO₂ built up on day 3')
+  })
+
+  it('only fails hardware the plan carries (no O₂ generator on tanks, no greenhouse when off)', () => {
+    const r = runOnce(plan({ o2Source: 'tanks' }, { o2: 1000 }, 10), () => 0)
+    const failed = new Set(r.componentEvents.map((e) => e.component))
+    expect(failed).toEqual(new Set(['waterRecycler', 'co2Scrubber']))
   })
 })
