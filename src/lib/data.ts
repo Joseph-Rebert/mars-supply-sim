@@ -2,9 +2,17 @@
 // Rule: each exported constant gets a `// Source:` comment (URL or document name);
 // extrapolated or assumed values are marked `// ASSUMPTION:`.
 // Primary reference is BVAD Rev2 (2022); values are not mixed with Rev1 (2018), which differs.
-// TODO(GEA-12): Mars vs. Moon destination profiles.
+// TODO(GEA-12): full Mars vs. Moon destination profiles (DESTINATION_FACTS is the display subset).
 
-import type { ComponentKey, ComponentSpec, ConsumableKey, O2Source, ReadinessTier } from './types'
+import type {
+  ComponentKey,
+  ComponentSpec,
+  ConsumableKey,
+  Destination,
+  DestinationFacts,
+  O2Source,
+  ReadinessTier,
+} from './types'
 
 const BVAD = 'NASA BVAD Rev2, NASA/TP-2015-218570/REV2 (2022)'
 
@@ -215,6 +223,48 @@ export const O2_SOURCE_READINESS: Record<O2Source, ReadinessTier> = {
 // Source: KRUSTY ground test, March 2018 (Gibson et al., NTRS 20180005435); never flown.
 export const KILOPOWER_READINESS: ReadinessTier = 'demonstrated'
 
+// ---------- Destinations (display facts; GEA-12 builds full profiles) ----------
+
+// Source: CODATA speed of light in vacuum, 299,792.458 km/s (exact by SI definition).
+export const LIGHT_KM_PER_SEC = 299_792.458
+
+// Source: NASA NSSDC Mars Fact Sheet, distance from Earth "Minimum (10^6 km) 54.6",
+// https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html
+export const MARS_MIN_DISTANCE_KM = 54.6e6
+
+// Source: NASA NSSDC Mars Fact Sheet, distance from Earth "Maximum (10^6 km) 401.3".
+export const MARS_MAX_DISTANCE_KM = 401.3e6
+
+// Source: NASA NSSDC Mars Fact Sheet, "Synodic period (days) 779.94" — one launch window per period.
+export const MARS_SYNODIC_PERIOD_DAYS = 779.94
+
+// Source: NASA NSSDC Moon Fact Sheet, "Semimajor axis (10^6 km) 0.3844",
+// https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html
+export const MOON_MEAN_DISTANCE_KM = 0.3844e6
+
+// Source: light time from the distances above; ISRU readiness from MOXIE (JPL 2023) and CaRD (Paz et al. 2026).
+// Moon resupply: no orbital-alignment window (launch any day).
+export const DESTINATION_FACTS: Record<Destination, DestinationFacts> = {
+  mars: {
+    label: 'Mars',
+    commsDelaySec: {
+      min: MARS_MIN_DISTANCE_KM / LIGHT_KM_PER_SEC,
+      max: MARS_MAX_DISTANCE_KM / LIGHT_KM_PER_SEC,
+    },
+    resupplyEveryDays: MARS_SYNODIC_PERIOD_DAYS,
+    isru: { label: 'MOXIE, scaled up', readiness: 'demonstrated' },
+  },
+  moon: {
+    label: 'Moon',
+    commsDelaySec: {
+      min: MOON_MEAN_DISTANCE_KM / LIGHT_KM_PER_SEC,
+      max: MOON_MEAN_DISTANCE_KM / LIGHT_KM_PER_SEC,
+    },
+    resupplyEveryDays: 0,
+    isru: { label: 'Regolith extraction', readiness: 'concept' },
+  },
+}
+
 // ---------- Sources list (for the pitch deck and an in-app credits panel) ----------
 
 // Source: this file's citations, collected.
@@ -274,6 +324,14 @@ export const SOURCES: readonly { title: string; url: string }[] = [
   {
     title: 'Briggs, Gibson & Sanzi, Kilopower, NASA/TM-2018-219702',
     url: 'https://ntrs.nasa.gov/api/citations/20180001487/downloads/20180001487.pdf',
+  },
+  {
+    title: 'NASA NSSDC Mars Fact Sheet',
+    url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html',
+  },
+  {
+    title: 'NASA NSSDC Moon Fact Sheet',
+    url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html',
   },
   {
     title: 'Jones, ISS ECLSS ORU reliability, ICES-2019-11',
