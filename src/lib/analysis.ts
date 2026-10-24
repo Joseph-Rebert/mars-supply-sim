@@ -37,6 +37,13 @@ function inSentence(label: string): string {
   return /^[A-Z][a-z]/.test(label) ? label[0].toLowerCase() + label.slice(1) : label
 }
 
+/** Plain-language reasons for 'crewUnfit' drivers (GEA-23). */
+const UNFIT_DRIVER_TEXT: Record<string, string> = {
+  boneLoss: 'bone loss passed twice NASA’s 5% limit',
+  scurvy: 'vitamin C fell to scurvy levels',
+  bodyMass: 'lost more than 15% of body mass',
+}
+
 /** One sentence saying what ended a run and why, e.g. for the weakest-link callout. */
 export function describeFailure(cause: FailureCause): string {
   switch (cause.kind) {
@@ -51,8 +58,10 @@ export function describeFailure(cause: FailureCause): string {
       const component = COMPONENTS[cause.component].label
       return `${component} offline with no spares for more than ${CO2_SCRUBBER_GRACE_DAYS} days; CO₂ built up on day ${cause.day}`
     }
-    case 'crewUnfit':
-      return `Crew member ${cause.crewId} became unfit on day ${cause.day}${cause.driver ? ` (${cause.driver})` : ''}`
+    case 'crewUnfit': {
+      const why = cause.driver ? UNFIT_DRIVER_TEXT[cause.driver] : undefined
+      return `Crew member ${cause.crewId} became medically unfit on day ${cause.day}${why ? `: ${why}` : ''}`
+    }
   }
 }
 

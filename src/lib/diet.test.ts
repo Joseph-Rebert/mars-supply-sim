@@ -7,6 +7,13 @@ import { mulberry32 } from './rng'
 import { runMission, runOnce } from './sim'
 import { COMPONENT_KEYS, type ComponentKey, type ComponentSpec, type MissionPlan } from './types'
 
+/** CPU time of this test process in ms, so other test files running in parallel don't count. */
+declare const process: { cpuUsage(): { user: number; system: number } }
+const cpuMs = () => {
+  const { user, system } = process.cpuUsage()
+  return (user + system) / 1000
+}
+
 const UNBREAKABLE = Object.fromEntries(
   COMPONENT_KEYS.map((c) => [c, { ...COMPONENTS[c], mtbfDays: Infinity }]),
 ) as Record<ComponentKey, ComponentSpec>
@@ -100,9 +107,9 @@ describe('nutrition in runOnce', () => {
 
   it('keeps Monte Carlo under 2 s for 1,000 runs of the 900-day plan', () => {
     const plan = fakePlan()
-    runMission(plan, { runs: 50, seed: 1 })
-    const start = performance.now()
+    runMission(plan, { runs: 300, seed: 1 }) // warm up: let V8 finish optimizing before timing
+    const start = cpuMs()
     runMission(plan, { runs: 1000, seed: 1 })
-    expect(performance.now() - start).toBeLessThan(2000)
+    expect(cpuMs() - start).toBeLessThan(2000)
   })
 })
