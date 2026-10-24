@@ -683,3 +683,15 @@ p {
   height: 12px;
   background: var(--text-muted);
 }
+
+/* ---------- Timeline overlays (GEA-40) ---------- */
+
+.swatch-window {
+  height: 12px;
+  background: var(--accent);
+  opacity: 0.35;
+}
+
+.swatch-distance {
+  background: var(--text-muted);
+}
