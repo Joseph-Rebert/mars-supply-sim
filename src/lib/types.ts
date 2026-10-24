@@ -109,6 +109,8 @@ export type TransferModel =
       c3: number
       vInfArrival: number
       distanceKm: number
+      /** Days between default cargo flights; there are no windows to snap to. */
+      resupplyCadenceDays: number
     }
 
 /** Everything that differs between Mars and the Moon. The sim reads this; it never checks the name. */
