@@ -98,6 +98,37 @@ describe('runOnce, O₂ sources', () => {
   })
 })
 
+describe('runOnce, destination profiles', () => {
+  const onMoon = (p: MissionPlan): MissionPlan => ({ ...p, destination: 'moon' })
+
+  it('same ISRU plan: O₂ holds on Mars, but lunar regolith O₂ falls short', () => {
+    // Moon: 1000/365 = 2.739726 kg/day vs 3.58 demand → −0.840274 kg/day.
+    // 50 kg lasts 59 days (0.42 kg left after day 58), runs out on day 59.
+    const p = plan({ o2Source: 'isru' }, { o2: 50 })
+    const mars = run(p)
+    const moon = run(onMoon(p))
+    expect(mars.survived).toBe(true)
+    expect(mars.stocks.o2[99]).toBeCloseTo(50, 9)
+    expect(moon.stocks.o2[0]).toBeCloseTo(50 - 0.840274, 6)
+    expect(moon.failure).toEqual({ kind: 'stockout', resource: 'o2', day: 59 })
+  })
+
+  it('halves greenhouse output through the lunar night', () => {
+    const p = plan({ greenhouse: { enabled: true, areaM2: 10 } })
+    expect(dailyRates(onMoon(p)).greenhouseFoodKg).toBeCloseTo(
+      dailyRates(p).greenhouseFoodKg / 2,
+      9,
+    )
+  })
+
+  it('leaves electrolysis and tanks unchanged between destinations', () => {
+    for (const o2Source of ['electrolysis', 'tanks'] as const) {
+      const p = plan({ o2Source })
+      expect(dailyRates(onMoon(p))).toEqual(dailyRates(p))
+    }
+  })
+})
+
 describe('runOnce, stock-outs', () => {
   it('fails on the day a stock goes negative and records the resource', () => {
     // 36.8 kg O₂ at 3.58 kg/day: 1.0 kg left after day 9, −2.58 on day 10.

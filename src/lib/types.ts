@@ -106,6 +106,40 @@ export type RunOptions = {
   seed: number
 }
 
+// ---------- Destination (GEA-12) ----------
+
+/**
+ * How cargo gets there. 'table': read the offline-built transfer table for this destination (Mars);
+ * 'fixed': same transit and payload any day (Moon).
+ */
+export type TransferModel =
+  | { kind: 'table' }
+  | {
+      kind: 'fixed'
+      transitDays: number
+      c3: number
+      vInfArrival: number
+      distanceKm: number
+    }
+
+/** Everything that differs between Mars and the Moon. The sim reads this; it never checks the name. */
+export type DestinationProfile = {
+  label: string
+  transfer: TransferModel
+  /** Default MissionPlan.baseVehiclePayloadKg: payload at a best-window launch. */
+  baseVehiclePayloadKg: number
+  /** Max O₂ the local 'isru' source makes per day; production is capped here, not just sized to demand. */
+  isruO2KgPerDay: number
+  isruLabel: string
+  isruReadiness: ReadinessTier
+  /** Surface gravity in Earth g (body health model). */
+  gravityG: number
+  /** One-way light time to Earth, seconds. Display only. */
+  commsDelaySeconds: { min: number; max: number }
+  /** Share of nominal greenhouse output achieved, 0–1 (e.g. lunar night without power to light crops). */
+  greenhouseOutputFactor: number
+}
+
 // ---------- Launch timing (GEA-38 / GEA-39) ----------
 
 export type Transfer = {

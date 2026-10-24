@@ -1,15 +1,16 @@
 // Launch date → transit time and payload factor, per destination.
-// Mars reads the offline-built table (scripts/build-transfers.ts); the Moon is constant.
+// Each destination's TransferModel (data.ts) says whether to read an offline-built table
+// (scripts/build-transfers.ts) or use fixed values.
 
-import table from '../cache/transfers-mars.json'
-import {
-  EARTH_MOON_DISTANCE_KM,
-  MOON_ARRIVAL_VINF_KM_S,
-  MOON_TRANSFER_C3_KM2_S2,
-  MOON_TRANSIT_DAYS,
-} from './data'
+import marsTable from '../cache/transfers-mars.json'
+import { DESTINATION_PROFILES } from './data'
 import { addDays } from './dates'
-import type { Destination, IsoDate, LaunchWindow, Transfer } from './types'
+import type { Destination, IsoDate, LaunchWindow, Transfer, TransferModel } from './types'
+
+type TransferTable = { windows: LaunchWindow[]; transfers: Transfer[] }
+
+// Tables built offline, for destinations whose TransferModel is 'table'.
+const TABLES: Partial<Record<Destination, TransferTable>> = { mars: marsTable }
 
 type TransferSchedule = {
   /** Launch dates the schedule covers (inclusive), or undefined when any date works. */
@@ -18,35 +19,49 @@ type TransferSchedule = {
   transferFor: (launchDate: IsoDate) => Transfer
 }
 
-const marsByDate = new Map<IsoDate, Transfer>(table.transfers.map((t) => [t.launchDate, t]))
-const marsRange = { first: table.transfers[0].launchDate, last: table.transfers.at(-1)!.launchDate }
-
-const SCHEDULES: Record<Destination, TransferSchedule> = {
-  mars: {
-    range: marsRange,
+function tableSchedule(destination: Destination): TransferSchedule {
+  const table = TABLES[destination]
+  if (!table) throw new Error(`No transfer table built for ${destination}`)
+  const byDate = new Map(table.transfers.map((t) => [t.launchDate, t]))
+  const range = { first: table.transfers[0].launchDate, last: table.transfers.at(-1)!.launchDate }
+  return {
+    range,
     windows: table.windows,
     transferFor: (launchDate) => {
-      const t = marsByDate.get(launchDate)
+      const t = byDate.get(launchDate)
       if (!t) {
         throw new RangeError(
-          `No Mars transfer for ${launchDate}; table covers ${marsRange.first} to ${marsRange.last}`,
+          `No ${destination} transfer for ${launchDate}; table covers ${range.first} to ${range.last}`,
         )
       }
       return t
     },
-  },
-  moon: {
+  }
+}
+
+function fixedSchedule(model: Extract<TransferModel, { kind: 'fixed' }>): TransferSchedule {
+  return {
     windows: [],
     transferFor: (launchDate) => ({
       launchDate,
-      transitDays: MOON_TRANSIT_DAYS,
-      arrivalDate: addDays(launchDate, MOON_TRANSIT_DAYS),
-      c3: MOON_TRANSFER_C3_KM2_S2,
-      vInfArrival: MOON_ARRIVAL_VINF_KM_S,
+      transitDays: model.transitDays,
+      arrivalDate: addDays(launchDate, model.transitDays),
+      c3: model.c3,
+      vInfArrival: model.vInfArrival,
       payloadFactor: 1,
-      distanceKmAtLaunch: EARTH_MOON_DISTANCE_KM,
+      distanceKmAtLaunch: model.distanceKm,
     }),
-  },
+  }
+}
+
+const schedule = (destination: Destination): TransferSchedule => {
+  const model = DESTINATION_PROFILES[destination].transfer
+  return model.kind === 'table' ? tableSchedule(destination) : fixedSchedule(model)
+}
+
+const SCHEDULES: Record<Destination, TransferSchedule> = {
+  mars: schedule('mars'),
+  moon: schedule('moon'),
 }
 
 /** Transfer for cargo launched on `launchDate`. Throws RangeError outside the destination's table. */
