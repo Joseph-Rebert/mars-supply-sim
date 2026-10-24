@@ -1,5 +1,4 @@
 // Pure simulation: MissionPlan in, SimResult out. No DOM, no React — runs in Node and Vitest.
-// TODO(GEA-22): Monte Carlo runner (runMission)
 
 import {
   CO2_SCRUBBER_GRACE_DAYS,
@@ -10,10 +9,13 @@ import {
   GREENHOUSE_FOOD_KG_PER_M2_DAY,
 } from './data'
 import { daysBetween } from './dates'
-import type { Rng } from './rng'
+import { cargoArrivals, totalLaunchMassKg } from './manifest'
+import { mulberry32, type Rng } from './rng'
 import { transferFor } from './transfers'
 import {
   COMPONENT_KEYS,
+  RESOURCE_KEYS,
+  type Band,
   type CargoFlight,
   type ComponentEvent,
   type ComponentKey,
@@ -22,7 +24,9 @@ import {
   type MissionPlan,
   type O2Source,
   type ResourceKey,
+  type RunOptions,
   type RunResult,
+  type SimResult,
 } from './types'
 
 /** Per-day flows for a plan with every system online, computed once per plan. */
@@ -224,4 +228,69 @@ export function runOnce(plan: MissionPlan, rng: Rng): RunResult {
   }
 
   return { survived: !failure, failure, stocks, componentEvents: events }
+}
+
+export const DEFAULT_RUN_OPTIONS: RunOptions = { runs: 1000, seed: 1 }
+
+/** Value at quantile q (0–1) of an ascending array, interpolating between neighbours. */
+export function quantile(sorted: ArrayLike<number>, q: number): number {
+  const pos = q * (sorted.length - 1)
+  const lo = Math.floor(pos)
+  const hi = Math.ceil(pos)
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo)
+}
+
+/** P10/P50/P90 per day from day-major samples (`samples[day * runs + run]`). Sorts in place. */
+export function percentileBand(samples: Float64Array, days: number, runs: number): Band {
+  const band: Band = { p10: new Array(days), p50: new Array(days), p90: new Array(days) }
+  for (let day = 0; day < days; day++) {
+    const values = samples.subarray(day * runs, (day + 1) * runs).sort()
+    band.p10[day] = quantile(values, 0.1)
+    band.p50[day] = quantile(values, 0.5)
+    band.p90[day] = quantile(values, 0.9)
+  }
+  return band
+}
+
+/**
+ * Monte Carlo verdict: `runs` missions from one seeded stream, so the same seed always gives the
+ * same numbers. Survival = runs with no failure ÷ runs.
+ */
+export function runMission(
+  plan: MissionPlan,
+  options: RunOptions = DEFAULT_RUN_OPTIONS,
+): SimResult {
+  const { runs, seed } = options
+  if (!Number.isInteger(runs) || runs < 1) throw new RangeError(`runs must be ≥ 1, got ${runs}`)
+  const days = plan.durationDays
+  const rng = mulberry32(seed)
+  const samples = {} as Record<ResourceKey, Float64Array>
+  for (const k of RESOURCE_KEYS) samples[k] = new Float64Array(days * runs)
+
+  const failures: FailureCause[] = []
+  let survived = 0
+  for (let run = 0; run < runs; run++) {
+    const result = runOnce(plan, rng)
+    if (result.failure) failures.push(result.failure)
+    else survived++
+    for (const k of RESOURCE_KEYS) {
+      const series = result.stocks[k]
+      const out = samples[k]
+      for (let day = 0; day < days; day++) out[day * runs + run] = series[day]
+    }
+  }
+
+  const bands = {} as Record<ResourceKey, Band>
+  for (const k of RESOURCE_KEYS) bands[k] = percentileBand(samples[k], days, runs)
+
+  return {
+    runs,
+    seed,
+    survivalRate: survived / runs,
+    durationDays: days,
+    bands,
+    failures,
+    arrivals: cargoArrivals(plan),
+    totalLaunchMassKg: totalLaunchMassKg(plan),
+  }
 }
