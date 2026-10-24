@@ -3,7 +3,9 @@ import { CargoManifest } from './components/CargoManifest'
 import { fmt } from './components/format'
 import { MissionSetupForm } from './components/MissionSetupForm'
 import { Panel } from './components/Panel'
+import { PlanComparison } from './components/PlanComparison'
 import { ResultsView } from './components/ResultsView'
+import type { SavedRun } from './lib/compare'
 import { runBlockedReason } from './lib/launchDates'
 import { presetById, PRESETS, type PresetId } from './lib/presets'
 import { DEFAULT_RUN_OPTIONS, runMission } from './lib/sim'
@@ -25,8 +27,16 @@ function App() {
   const [run, setRun] = useState(() => simulate(plan))
   // Which demo preset is loaded; any edit makes the plan 'custom'.
   const [presetId, setPresetId] = useState<PresetId | typeof CUSTOM>('draft')
+  // Up to two saved runs for side-by-side comparison, kept in memory only.
+  const [saved, setSaved] = useState<{ a?: SavedRun; b?: SavedRun }>({})
   const blockedReason = useMemo(() => runBlockedReason(plan), [plan])
   const stale = run.plan !== plan
+
+  const saveRun = (slot: 'a' | 'b') =>
+    setSaved((s) => ({
+      ...s,
+      [slot]: { name: slot.toUpperCase(), plan: run.plan, result: run.result },
+    }))
 
   // Takes a plan (setup form) or an updater (manifest), like setPlan itself.
   const editPlan = (next: MissionPlan | ((plan: MissionPlan) => MissionPlan)) => {
@@ -95,6 +105,33 @@ function App() {
 
         <div className={stale ? 'column is-stale' : 'column'}>
           <ResultsView result={run.result} plan={run.plan} />
+          <Panel title="Compare plans">
+            <div className="comparison-actions">
+              <button type="button" className="btn btn-small" onClick={() => saveRun('a')}>
+                Save run as A
+              </button>
+              <button type="button" className="btn btn-small" onClick={() => saveRun('b')}>
+                Save run as B
+              </button>
+              <button
+                type="button"
+                className="btn btn-small"
+                disabled={!saved.a && !saved.b}
+                onClick={() => setSaved({})}
+              >
+                Clear
+              </button>
+            </div>
+            {saved.a && saved.b ? (
+              <PlanComparison a={saved.a} b={saved.b} />
+            ) : (
+              <p className="hint">
+                {saved.a || saved.b
+                  ? `Saved ${saved.a ? 'A' : 'B'}. Run another plan (or pick a scenario) and save it as ${saved.a ? 'B' : 'A'}.`
+                  : 'Save this run as A, change the plan or scenario, run again and save as B.'}
+              </p>
+            )}
+          </Panel>
         </div>
       </main>
     </div>
