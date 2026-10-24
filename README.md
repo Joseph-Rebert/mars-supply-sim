@@ -23,13 +23,14 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-| Command          | What it does                                    |
-| ---------------- | ----------------------------------------------- |
-| `npm run dev`    | Dev server with hot reload                      |
-| `npm run build`  | Typecheck + production build to `dist/`         |
-| `npm test`       | Run Vitest once (`npm run test:watch` to watch) |
-| `npm run lint`   | oxlint                                          |
-| `npm run format` | Prettier, writes changes                        |
+| Command               | What it does                                            |
+| --------------------- | ------------------------------------------------------- |
+| `npm run dev`         | Dev server with hot reload                              |
+| `npm run build`       | Typecheck + production build to `dist/`                 |
+| `npm test`            | Run Vitest once (`npm run test:watch` to watch)         |
+| `npm run test:sanity` | Sim sanity checks + perf (the numbers we show on stage) |
+| `npm run lint`        | oxlint                                                  |
+| `npm run format`      | Prettier, writes changes                                |
 
 ## Project layout
 
