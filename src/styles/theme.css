@@ -597,3 +597,31 @@ p {
   cursor: not-allowed;
   opacity: 0.4;
 }
+
+/* ---------- Results view ---------- */
+
+.verdict-caption {
+  font-family: var(--mono);
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.app-status.is-caution {
+  color: var(--caution);
+}
+
+/* Results from an older plan stay visible but recede until the next run. */
+.column.is-stale {
+  opacity: 0.4;
+}
+
+.swatch-dashed {
+  background: repeating-linear-gradient(90deg, var(--res-spares) 0 5px, transparent 5px 8px);
+}
+
+.swatch-marker {
+  width: 2px;
+  height: 12px;
+  background: var(--text-muted);
+}
