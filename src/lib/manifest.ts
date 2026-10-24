@@ -149,7 +149,11 @@ export function withDefaultFlights(plan: MissionPlan): MissionPlan {
 export function withFlightAdded(plan: MissionPlan): MissionPlan {
   const last = plan.flights.at(-1)
   const launchDate = last?.launchDate ?? defaultLaunchDates(plan)[0]
-  const flight = emptyFlight(nextFlightId(plan.flights), flightLabel(plan.flights.length), launchDate)
+  const flight = emptyFlight(
+    nextFlightId(plan.flights),
+    flightLabel(plan.flights.length),
+    launchDate,
+  )
   return { ...plan, flights: [...plan.flights, flight] }
 }
 
