@@ -1,0 +1,70 @@
+/* Mission-control dark theme. All colors live here as tokens — no hard-coded colors in components.
+   GEA-10 expands this (panels, stat tiles, sliders, buttons, layout). */
+
+:root {
+  --bg: #0b0e13;
+  --panel: #131820;
+  --panel-raised: #1a212c;
+  --border: #263040;
+  --text: #e6edf3;
+  --text-muted: #8b98a9;
+
+  --nominal: #3fb950;
+  --caution: #f0a92e;
+  --critical: #f85149;
+  --accent: #58a6ff;
+
+  /* One color per resource, shared with charts */
+  --res-o2: #58a6ff;
+  --res-water: #39c5cf;
+  --res-food: #3fb950;
+  --res-spares: #d2a8ff;
+
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --radius: 8px;
+  --gap: 16px;
+
+  color-scheme: dark;
+  font: 16px/1.5 var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--gap);
+}
