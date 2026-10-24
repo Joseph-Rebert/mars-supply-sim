@@ -8,7 +8,7 @@ import { Panel } from './components/Panel'
 import { PlanComparison } from './components/PlanComparison'
 import { ResultsView } from './components/ResultsView'
 import type { FixState } from './components/WeakestLinkCallout'
-import { suggestFix, weakestLink, type WeakestLink } from './lib/analysis'
+import { nutritionWarning, suggestFix, weakestLink, type WeakestLink } from './lib/analysis'
 import type { SavedRun } from './lib/compare'
 import { runBlockedReason } from './lib/launchDates'
 import { presetById, PRESETS, type PresetId } from './lib/presets'
@@ -72,6 +72,8 @@ function App() {
   }, [run])
 
   const fixState: FixState = fix?.for === run ? fix.state : 'searching'
+  // Diet check on the run's plan: one failure-free run, fast enough to compute inline.
+  const nutrition = useMemo(() => nutritionWarning(run.plan), [run])
 
   /** Runs `next` and shows it, or keeps the last run and reports why this one failed. */
   function tryRun(next: MissionPlan) {
@@ -99,7 +101,11 @@ function App() {
 
   function applyFix() {
     if (fixState === 'searching' || fixState.status !== 'fix') return
-    const fixed = fixState.plan
+    applyPlan(fixState.plan)
+  }
+
+  // A suggested plan (survival fix or nutrition fix): apply it, rerun, and save Before/After.
+  function applyPlan(fixed: MissionPlan) {
     const before = run
     setApplying(true)
     afterPaint(() => {
@@ -188,6 +194,8 @@ function App() {
             }
             applying={applying}
             onApplyFix={applyFix}
+            nutrition={nutrition}
+            onApplyNutritionFix={() => nutrition?.fix && applyPlan(nutrition.fix.plan)}
           />
           <Panel title="Compare plans">
             <div className="comparison-actions">
