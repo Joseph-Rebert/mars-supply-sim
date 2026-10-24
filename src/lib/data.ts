@@ -39,6 +39,7 @@ export const FOOD_SHIPPED_KG_PER_CREW_DAY = 2.39
 export const FOOD_KG_PER_CREW_DAY = 1.96
 
 // Source: BVAD Rev2 Table 3-31 p.58, "Food Consumed; Energy Content 12.778 MJ/CM-d" (÷ 4.184 kJ/kcal).
+// Paired with FOOD_KG_PER_CREW_DAY this sets the food energy density used for per-person food mass.
 export const FOOD_KCAL_PER_CREW_DAY = 3054
 
 // Source: BVAD Rev2 (see the individual constants above). Stock units: kg of O₂, water, food.
@@ -47,6 +48,53 @@ export const CREW_NEEDS_KG_PER_CREW_DAY: Record<ConsumableKey, number> = {
   water: WATER_KG_PER_CREW_DAY,
   food: FOOD_KG_PER_CREW_DAY,
 }
+
+// ---------- Per-person needs (Crew Diet & Health) ----------
+
+// Source: BVAD Rev2 Equation 3-2 p.45 (from NASA HIDH 2014), male > 19 y, kcal/day:
+// 622 − 9.53 × age + 1.25 × (15.9 × mass + 539.6 × height). The 1.25 is the activity factor (see below).
+// p.107 states this gives 12.707 MJ/CM-d for the mean astronaut (82.4 kg, 1.786 m, 45 y); crew.test checks it.
+export const EER_MALE = { base: 622, perYear: 9.53, perKg: 15.9, perM: 539.6 }
+
+// Source: BVAD Rev2 Equation 3-3 p.45 (from NASA HIDH 2014), female > 19 y, kcal/day:
+// 354 − 6.91 × age + 1.25 × (9.36 × mass + 726 × height).
+export const EER_FEMALE = { base: 354, perYear: 6.91, perKg: 9.36, perM: 726 }
+
+// Source: Institute of Medicine, "Dietary Reference Intakes for Energy, Carbohydrate, Fiber, Fat, Fatty Acids,
+// Cholesterol, Protein, and Amino Acids" (2005), ch. 5, physical-activity coefficients (low active 1.11,
+// active 1.25, very active 1.48), https://nap.nationalacademies.org/catalog/10490
+// ASSUMPTION: 'moderate' = NASA's 1.25 (BVAD applies it to both sexes), so we use the IOM male values for both.
+export const ACTIVITY_FACTOR = { light: 1.11, moderate: 1.25, heavy: 1.48 } as const
+
+// Source: BVAD Rev2 Table 4-59 p.125, protein goal "12 – 15" % of dietary energy; we use the minimum.
+export const PROTEIN_ENERGY_FRACTION_MIN = 0.12
+
+// Source: Atwater general factor, 4 kcal per gram of protein (USDA, Agriculture Handbook No. 74, 1973).
+export const KCAL_PER_G_PROTEIN = 4
+
+// Source: BVAD Rev2 Table 4-57 p.123, "NASA Goal" column: vitamin C 100 mg/CM-d.
+export const VITAMIN_C_MG_PER_DAY = 100
+
+// Source: BVAD Rev2 Table 4-57 p.123, NASA Goal 400 IU/CM-d; footnote 125: 1 IU = 1/40 µg → 10 µg.
+export const VITAMIN_D_UG_PER_DAY = 400 / 40
+
+// Source: BVAD Rev2 Table 4-57 p.123, NASA Goal: calcium 1,000 mg/CM-d.
+export const CALCIUM_MG_PER_DAY = 1000
+
+// Source: BVAD Rev2 Table 4-57 p.123, NASA Goal: potassium 3,500 mg/CM-d.
+export const POTASSIUM_MG_PER_DAY = 3500
+
+// Source: BVAD Rev2 Table 3-21 p.44, crewmember mass limits: 5th-percentile female 53.69 kg to
+// 95th-percentile male 99.16 kg (NASA HIDH 2014).
+export const CREW_MASS_KG_RANGE = { min: 53.69, max: 99.16 }
+
+// Source: lower bound BVAD Rev2 Table 4-57 reference-diet (RDA goal) 2,000 kcal = 8.37 MJ/CM-d, used as a
+// sanity floor (BVAD publishes no minimum); upper bound p.44, an exceptionally active
+// 82 kg male "could be as high as 18 MJ/CM-d" (Muller and Tobin, 1980).
+export const CREW_ENERGY_MJ_RANGE = { min: 8.37, max: 18 }
+
+// Source: thermochemical calorie, 4.184 kJ/kcal (NIST SP 811).
+export const KJ_PER_KCAL = 4.184
 
 // ---------- ISS ECLSS performance ----------
 

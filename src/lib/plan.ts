@@ -15,6 +15,7 @@ export const DAYS_PER_MONTH = 30.4375
 /**
  * Default crew, in the order members are added. The first four match fakePlan().
  * Fictional people; body stats are typical adult values for Crew Diet & Health to refine.
+ * ASSUMPTION: heights (1.60–1.88 m) are invented to fall inside NASA's crew size range (BVAD Table 3-21).
  */
 export const CREW_ROSTER: readonly CrewMember[] = [
   {
@@ -25,6 +26,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
     massKg: 62,
     activity: 'moderate',
     exerciseMinPerDay: 120,
+    heightM: 1.65,
   },
   {
     id: 'c2',
@@ -34,6 +36,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
     massKg: 81,
     activity: 'heavy',
     exerciseMinPerDay: 120,
+    heightM: 1.83,
   },
   {
     id: 'c3',
@@ -43,6 +46,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
     massKg: 58,
     activity: 'moderate',
     exerciseMinPerDay: 90,
+    heightM: 1.7,
   },
   {
     id: 'c4',
@@ -52,6 +56,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
     massKg: 74,
     activity: 'light',
     exerciseMinPerDay: 90,
+    heightM: 1.72,
   },
   {
     id: 'c5',
@@ -61,6 +66,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
     massKg: 66,
     activity: 'moderate',
     exerciseMinPerDay: 90,
+    heightM: 1.63,
   },
   {
     id: 'c6',
@@ -70,6 +76,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
     massKg: 85,
     activity: 'heavy',
     exerciseMinPerDay: 120,
+    heightM: 1.88,
   },
   {
     id: 'c7',
@@ -79,6 +86,7 @@ export const CREW_ROSTER: readonly CrewMember[] = [
     massKg: 77,
     activity: 'moderate',
     exerciseMinPerDay: 90,
+    heightM: 1.78,
   },
   {
     id: 'c8',
@@ -86,8 +94,9 @@ export const CREW_ROSTER: readonly CrewMember[] = [
     sex: 'female',
     ageYears: 44,
     massKg: 60,
-    activity: 'light',
+    activity: 'moderate',
     exerciseMinPerDay: 90,
+    heightM: 1.6,
   },
 ]
 
