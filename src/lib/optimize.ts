@@ -152,6 +152,17 @@ function schedules(
   return resupplies.length > 0 ? [[lander, ...resupplies], [lander]] : [[lander]]
 }
 
+/**
+ * Earliest start date the planner can supply: the first launch window's best-date landing (Mars), or
+ * the first day the transfer model covers plus transit (any-day destinations).
+ */
+export function earliestStartDate(destination: Destination): IsoDate {
+  const windows = launchWindows(destination)
+  if (windows.length > 0) return transferFor(destination, windows[0].bestDate).arrivalDate
+  const today = '2026-01-01'
+  return addDays(today, transferFor(destination, today).transitDays + 1)
+}
+
 /** Size each delivery to cover its stretch of the mission, plus margin days and spares. */
 function sizeDeliveries(
   spec: MissionSpec,
