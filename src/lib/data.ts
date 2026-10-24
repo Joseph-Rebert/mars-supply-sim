@@ -120,6 +120,11 @@ export const VITAMIN_D_DECAY_PER_DAY = 0
 // "vitamins A, C, B1, and B6" as decreasing during storage.
 export const MINERAL_DECAY_PER_DAY = 0
 
+// Source: BVAD Rev2 p.122 footnote 123 (French & Perchonok 2006): "Vitamin D supplements are currently provided
+// for the ISS crewmembers' daily use"; Cooper et al. (2017): food vitamin D is below needs after processing.
+// ASSUMPTION: the supplement dose equals the 10 µg/day NASA goal (no dose is given in either source).
+export const VITAMIN_D_SUPPLEMENT_UG_PER_DAY = 10
+
 // ---------- ISS ECLSS performance ----------
 
 // Source: NASA, "NASA Achieves Water Recovery Milestone on International Space Station" (2023-06-20),

@@ -9,6 +9,7 @@ import {
   GREENHOUSE_FOOD_KG_PER_M2_DAY,
 } from './data'
 import { crewFoodKgPerDay } from './crew'
+import { createNutritionTracker } from './diet'
 import { daysBetween } from './dates'
 import { cargoArrivals, totalLaunchMassKg } from './manifest'
 import { mulberry32, type Rng } from './rng'
@@ -83,6 +84,8 @@ export function arrivalDay(plan: MissionPlan, flight: CargoFlight): number | nul
 
 type Delivery = {
   day: number
+  /** Mission day the cargo launched, used as the food's production date for shelf age. */
+  producedDay: number
   kg: Record<ConsumableKey, number>
   spares: Record<ComponentKey, number>
 }
@@ -92,7 +95,12 @@ function deliveries(plan: MissionPlan): Delivery[] {
   for (const flight of plan.flights) {
     const day = arrivalDay(plan, flight)
     if (day === null || day >= plan.durationDays) continue
-    out.push({ day: Math.max(0, day), kg: flight.consumablesKg, spares: flight.spares })
+    out.push({
+      day: Math.max(0, day),
+      producedDay: daysBetween(plan.startDate, flight.launchDate),
+      kg: flight.consumablesKg,
+      spares: flight.spares,
+    })
   }
   return out
 }
@@ -150,6 +158,7 @@ export function runOnce(
   }
   const online = (c: ComponentKey) => installed[c] && downUntil[c] === ONLINE
   const events: ComponentEvent[] = []
+  const nutrition = createNutritionTracker(plan.crew)
 
   const stocks: Record<ResourceKey, number[]> = {
     o2: new Array<number>(days),
@@ -170,6 +179,7 @@ export function runOnce(
         o2 += a.kg.o2
         water += a.kg.water
         food += a.kg.food
+        nutrition?.deliver(a.kg.food, a.producedDay)
         for (const c of COMPONENT_KEYS) spareStock[c] += a.spares[c]
       }
 
@@ -202,6 +212,13 @@ export function runOnce(
         water -= rates.o2WaterCostKg
       }
       if (online('greenhouse')) food += rates.greenhouseFoodKg
+      if (nutrition) {
+        // Fresh greenhouse produce is eaten first; any surplus goes into stock as today's batch.
+        const grown = online('greenhouse') ? rates.greenhouseFoodKg : 0
+        const fresh = Math.min(grown, rates.consumeKg.food)
+        nutrition.eat(day, rates.consumeKg.food - fresh, fresh)
+        nutrition.deliver(grown - fresh, day)
+      }
       co2DownDays = online('co2Scrubber') ? 0 : co2DownDays + 1
 
       // O₂ first: if several run out the same day, suffocation is what ends the mission.
@@ -234,7 +251,9 @@ export function runOnce(
       spareStock.greenhouse
   }
 
-  return { survived: !failure, failure, stocks, componentEvents: events }
+  const result: RunResult = { survived: !failure, failure, stocks, componentEvents: events }
+  if (nutrition) result.nutrition = nutrition.result()
+  return result
 }
 
 export const DEFAULT_RUN_OPTIONS: RunOptions = { runs: 1000, seed: 1 }

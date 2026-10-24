@@ -205,6 +205,26 @@ export type ComponentEvent = {
   spareUsed?: boolean
 }
 
+/** Nutrients compared against each crew member's DailyNeeds (Crew Diet & Health). */
+export type NutrientKey =
+  'energyKcal' | 'proteinG' | 'vitaminCMg' | 'vitaminDUg' | 'calciumMg' | 'potassiumMg'
+export const NUTRIENT_KEYS: readonly NutrientKey[] = [
+  'energyKcal',
+  'proteinG',
+  'vitaminCMg',
+  'vitaminDUg',
+  'calciumMg',
+  'potassiumMg',
+]
+
+/** One crew member's shortfall for one nutrient over a run. */
+export type NutrientTally = {
+  /** Sum of daily (need − intake) on short days, in the nutrient's unit. */
+  deficit: number
+  daysShort: number
+  firstShortDay: number | null
+}
+
 /** Result of one simulated mission (runOnce). */
 export type RunResult = {
   survived: boolean
@@ -212,6 +232,8 @@ export type RunResult = {
   /** Stock level per day, index = day. kg for consumables, count for spares. */
   stocks: Record<ResourceKey, number[]>
   componentEvents: ComponentEvent[]
+  /** Per crew member id; present when every crew member has a full profile (GEA-17). */
+  nutrition?: Record<string, Record<NutrientKey, NutrientTally>>
 }
 
 /** Percentiles across runs, index = day. */
