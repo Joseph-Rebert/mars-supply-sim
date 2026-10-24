@@ -597,3 +597,61 @@ p {
   cursor: not-allowed;
   opacity: 0.4;
 }
+
+/* ---------- Launch date picker (GEA-41) ---------- */
+
+.launch-picker {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+}
+
+.launch-picker + .launch-picker {
+  border-top: 1px solid var(--rule);
+}
+
+.launch-picker-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-family: var(--mono);
+  text-transform: uppercase;
+}
+
+.launch-picker-controls .field-label {
+  flex: 1 1 auto;
+}
+
+.date-input {
+  font: var(--fs-label) / 1 var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+  padding: 6px 8px;
+  color-scheme: dark;
+}
+
+.date-input:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.btn-small {
+  font-size: var(--fs-label);
+  padding: 7px 10px;
+}
+
+.launch-readout {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.hint.is-critical {
+  color: var(--critical);
+}

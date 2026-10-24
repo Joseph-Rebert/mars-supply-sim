@@ -7,6 +7,7 @@ import {
   LegendComponent,
   MarkLineComponent,
   MarkAreaComponent,
+  MarkPointComponent,
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 
@@ -19,6 +20,7 @@ echarts.use([
   LegendComponent,
   MarkLineComponent,
   MarkAreaComponent,
+  MarkPointComponent,
   CanvasRenderer,
 ])
 
