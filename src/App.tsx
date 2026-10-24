@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { fmt } from './components/format'
+import { LaunchDatePicker } from './components/LaunchDatePicker'
 import { MissionSetupForm } from './components/MissionSetupForm'
 import { Panel } from './components/Panel'
-import { Readout } from './components/Readout'
 import { ResultsView } from './components/ResultsView'
 import { fakePlan } from './lib/fake'
+import { runBlockedReason, withFlightLaunchDate } from './lib/launchDates'
 import { DEFAULT_RUN_OPTIONS, runMission } from './lib/sim'
 import type { MissionPlan, SimResult } from './lib/types'
 
 // App state: the plan being edited, and the last run (with the plan that produced it, so the
-// results never silently describe a different plan). The manifest editor is GEA-16.
+// results never silently describe a different plan). Manifest line items + mass bar are GEA-16.
 
 type Run = { plan: MissionPlan; result: SimResult }
 
@@ -20,6 +21,7 @@ function simulate(plan: MissionPlan): Run {
 function App() {
   const [plan, setPlan] = useState(fakePlan)
   const [run, setRun] = useState(() => simulate(plan))
+  const blockedReason = useMemo(() => runBlockedReason(plan), [plan])
   const stale = run.plan !== plan
 
   return (
@@ -40,15 +42,23 @@ function App() {
       <main className="layout">
         <div className="column">
           <Panel title="Mission setup">
-            <MissionSetupForm plan={plan} onChange={setPlan} onRun={() => setRun(simulate(plan))} />
+            <MissionSetupForm
+              plan={plan}
+              onChange={setPlan}
+              onRun={() => setRun(simulate(plan))}
+              runBlockedReason={blockedReason}
+            />
           </Panel>
           <Panel title="Cargo manifest">
-            <div className="readouts">
-              {plan.flights.map((f) => (
-                <Readout key={f.id} label={f.label} value={f.launchDate} />
-              ))}
-            </div>
-            <p className="note">Launch windows and mass budget arrive with GEA-16.</p>
+            {plan.flights.map((f) => (
+              <LaunchDatePicker
+                key={f.id}
+                plan={plan}
+                flight={f}
+                onChange={(date) => setPlan((p) => withFlightLaunchDate(p, f.id, date))}
+              />
+            ))}
+            <p className="note">Line items and the mass budget bar arrive with GEA-16.</p>
           </Panel>
         </div>
 

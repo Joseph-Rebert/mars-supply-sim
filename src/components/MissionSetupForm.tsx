@@ -22,6 +22,8 @@ type Props = {
   onChange: (plan: MissionPlan) => void
   /** Omitted until the Monte Carlo runner exists (GEA-22); the button then shows why it's disabled. */
   onRun?: () => void
+  /** Why the plan can't run as configured (e.g. a flight over capacity); disables the button. */
+  runBlockedReason?: string
 }
 
 const DURATION_MONTHS = { min: 6, max: 36 }
@@ -124,7 +126,7 @@ function Slider(props: {
   )
 }
 
-export function MissionSetupForm({ plan, onChange, onRun }: Props) {
+export function MissionSetupForm({ plan, onChange, onRun, runBlockedReason }: Props) {
   const { lifeSupport } = plan
   const months = daysToMonths(plan.durationDays)
   const recoveryPct = Math.round(lifeSupport.waterRecoveryRate * 100)
@@ -136,7 +138,7 @@ export function MissionSetupForm({ plan, onChange, onRun }: Props) {
       className="setup-form"
       onSubmit={(e) => {
         e.preventDefault()
-        onRun?.()
+        if (!runBlockedReason) onRun?.()
       }}
     >
       <Segmented<Destination>
@@ -225,10 +227,20 @@ export function MissionSetupForm({ plan, onChange, onRun }: Props) {
         />
       </div>
 
-      <button className="btn btn-primary btn-block" type="submit" disabled={!onRun}>
+      <button
+        className="btn btn-primary btn-block"
+        type="submit"
+        disabled={!onRun || runBlockedReason !== undefined}
+      >
         Run mission
       </button>
-      {!onRun && <p className="hint">Runs once the Monte Carlo runner lands (GEA-22).</p>}
+      {runBlockedReason ? (
+        <p className="hint is-critical" role="alert">
+          {runBlockedReason}
+        </p>
+      ) : (
+        !onRun && <p className="hint">Runs once the Monte Carlo runner lands (GEA-22).</p>
+      )}
     </form>
   )
 }
