@@ -1,28 +1,63 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CargoManifest } from './components/CargoManifest'
 import { fmt } from './components/format'
 import { MissionSetupForm } from './components/MissionSetupForm'
 import { Panel } from './components/Panel'
 import { ResultsView } from './components/ResultsView'
+import type { FixState } from './components/WeakestLinkCallout'
+import { suggestFix, weakestLink, type WeakestLink } from './lib/analysis'
 import { fakePlan } from './lib/fake'
 import { runBlockedReason } from './lib/launchDates'
 import { DEFAULT_RUN_OPTIONS, runMission } from './lib/sim'
 import type { MissionPlan, SimResult } from './lib/types'
 
 // App state: the plan being edited, and the last run (with the plan that produced it, so the
-// results never silently describe a different plan).
+// results never silently describe a different plan). The suggested fix for a run is searched after
+// the run is on screen, because it re-simulates several candidate plans (~1 s).
 
-type Run = { plan: MissionPlan; result: SimResult }
+type Run = { plan: MissionPlan; result: SimResult; link: WeakestLink }
 
 function simulate(plan: MissionPlan): Run {
-  return { plan, result: runMission(plan, DEFAULT_RUN_OPTIONS) }
+  const result = runMission(plan, DEFAULT_RUN_OPTIONS)
+  return { plan, result, link: weakestLink(result) }
 }
+
+/** Let the browser paint (spinner, button state) before a long synchronous computation. */
+const afterPaint = (work: () => void) => setTimeout(work, 30)
 
 function App() {
   const [plan, setPlan] = useState(fakePlan)
   const [run, setRun] = useState(() => simulate(plan))
+  // The fix found for a specific run; anything else means that run's search is still going.
+  const [fix, setFix] = useState<{ for: Run; state: FixState } | null>(null)
+  const [applying, setApplying] = useState(false)
   const blockedReason = useMemo(() => runBlockedReason(plan), [plan])
   const stale = run.plan !== plan
+
+  useEffect(() => {
+    let cancelled = false
+    const timer = afterPaint(() => {
+      const state = suggestFix(run.plan, run.result)
+      if (!cancelled) setFix({ for: run, state })
+    })
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [run])
+
+  const fixState: FixState = fix?.for === run ? fix.state : 'searching'
+
+  function applyFix() {
+    if (fixState === 'searching' || fixState.status !== 'fix') return
+    const fixed = fixState.plan
+    setApplying(true)
+    afterPaint(() => {
+      setPlan(fixed)
+      setRun(simulate(fixed))
+      setApplying(false)
+    })
+  }
 
   return (
     <div className="app">
@@ -55,7 +90,17 @@ function App() {
         </div>
 
         <div className={stale ? 'column is-stale' : 'column'}>
-          <ResultsView result={run.result} plan={run.plan} />
+          <ResultsView
+            result={run.result}
+            plan={run.plan}
+            link={run.link}
+            fix={fixState}
+            applyBlockedReason={
+              stale ? 'The plan changed since this run. Run again for a fresh fix.' : undefined
+            }
+            applying={applying}
+            onApplyFix={applyFix}
+          />
         </div>
       </main>
     </div>
