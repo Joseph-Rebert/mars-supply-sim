@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { EChart, type EChartOption } from './components/EChart'
+import { fmt } from './components/format'
+import { LaunchDatePicker } from './components/LaunchDatePicker'
 import { MissionSetupForm } from './components/MissionSetupForm'
 import { Panel } from './components/Panel'
-import { Readout } from './components/Readout'
 import { StatTile, type Tone } from './components/StatTile'
 import { cssVar, RESOURCE_LABELS, resourceColors } from './components/themeColors'
 import { fakePlan, fakeResult } from './lib/fake'
+import { runBlockedReason, withFlightLaunchDate, withFlightsAtBestDates } from './lib/launchDates'
 import { CONSUMABLE_KEYS, type SimResult } from './lib/types'
 
 // App state is one MissionPlan edited by the setup form. Results are placeholders from fakeResult()
@@ -21,13 +23,6 @@ function survivalTone(rate: number): Tone {
   if (rate >= 0.9) return 'nominal'
   if (rate >= 0.7) return 'caution'
   return 'critical'
-}
-
-/** Console-style thousands separator: 10 550. */
-function fmt(n: number): string {
-  return Math.round(n)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
 
 function timelineOption(result: SimResult): EChartOption {
@@ -98,10 +93,12 @@ function timelineOption(result: SimResult): EChartOption {
 }
 
 function App() {
-  const [plan, setPlan] = useState(fakePlan)
+  // Flights start on the best date of their nearest launch window (GEA-41).
+  const [plan, setPlan] = useState(() => withFlightsAtBestDates(fakePlan()))
   // Placeholder results stay fixed until the real runner (GEA-22) and results view (GEA-27) land.
   const result = useMemo(() => fakeResult(), [])
   const option = useMemo(() => timelineOption(result), [result])
+  const blockedReason = useMemo(() => runBlockedReason(plan), [plan])
 
   const tone = survivalTone(result.survivalRate)
 
@@ -119,15 +116,18 @@ function App() {
       <main className="layout">
         <div className="column">
           <Panel title="Mission setup">
-            <MissionSetupForm plan={plan} onChange={setPlan} />
+            <MissionSetupForm plan={plan} onChange={setPlan} runBlockedReason={blockedReason} />
           </Panel>
           <Panel title="Cargo manifest">
-            <div className="readouts">
-              {plan.flights.map((f) => (
-                <Readout key={f.id} label={f.label} value={f.launchDate} />
-              ))}
-            </div>
-            <p className="note">Launch windows and mass budget arrive with GEA-16.</p>
+            {plan.flights.map((f) => (
+              <LaunchDatePicker
+                key={f.id}
+                plan={plan}
+                flight={f}
+                onChange={(date) => setPlan((p) => withFlightLaunchDate(p, f.id, date))}
+              />
+            ))}
+            <p className="note">Line items and the mass budget bar arrive with GEA-16.</p>
           </Panel>
         </div>
 
