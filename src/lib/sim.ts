@@ -10,6 +10,7 @@ import {
 } from './data'
 import { daysBetween } from './dates'
 import type { Rng } from './rng'
+import { transferFor } from './transfers'
 import {
   COMPONENT_KEYS,
   type CargoFlight,
@@ -62,22 +63,27 @@ export function dailyRates(plan: MissionPlan): DailyRates {
 }
 
 /**
- * Day index a flight's cargo becomes usable (≤ 0 is clamped to day 0), or null if it never arrives.
- * TODO(GEA-19): use transferFor(destination, launchDate); until then only pre-launched cargo counts.
+ * Day index a flight's cargo becomes usable: its transfer-table arrival, with anything landing on or
+ * before the start clamped to day 0 (initial stock). Null if it lands after the mission ends.
  */
 export function arrivalDay(plan: MissionPlan, flight: CargoFlight): number | null {
-  return daysBetween(plan.startDate, flight.launchDate) <= 0 ? 0 : null
+  const { arrivalDate } = transferFor(plan.destination, flight.launchDate)
+  const day = daysBetween(plan.startDate, arrivalDate)
+  return day < plan.durationDays ? Math.max(0, day) : null
 }
 
-type Delivery = { day: number; kg: Record<ConsumableKey, number>; spares: number }
+type Delivery = {
+  day: number
+  kg: Record<ConsumableKey, number>
+  spares: Record<ComponentKey, number>
+}
 
 function deliveries(plan: MissionPlan): Delivery[] {
   const out: Delivery[] = []
   for (const flight of plan.flights) {
     const day = arrivalDay(plan, flight)
-    if (day === null || day >= plan.durationDays) continue
-    const spares = COMPONENT_KEYS.reduce((sum, c) => sum + flight.spares[c], 0)
-    out.push({ day: Math.max(0, day), kg: flight.consumablesKg, spares })
+    if (day === null) continue
+    out.push({ day, kg: flight.consumablesKg, spares: flight.spares })
   }
   return out
 }
@@ -104,7 +110,13 @@ export function runOnce(plan: MissionPlan, _rng: Rng): RunResult {
   let o2 = 0
   let water = 0
   let food = 0
-  let spares = 0
+  // Per component so GEA-18 can draw the right spare; stocks.spares reports the total.
+  const spares: Record<ComponentKey, number> = {
+    waterRecycler: 0,
+    o2Generator: 0,
+    co2Scrubber: 0,
+    greenhouse: 0,
+  }
   let failure: FailureCause | undefined
 
   for (let day = 0; day < days; day++) {
@@ -114,7 +126,7 @@ export function runOnce(plan: MissionPlan, _rng: Rng): RunResult {
         o2 += a.kg.o2
         water += a.kg.water
         food += a.kg.food
-        spares += a.spares
+        for (const c of COMPONENT_KEYS) spares[c] += a.spares[c]
       }
 
       o2 -= rates.consumeKg.o2
@@ -142,7 +154,8 @@ export function runOnce(plan: MissionPlan, _rng: Rng): RunResult {
     stocks.o2[day] = o2
     stocks.water[day] = water
     stocks.food[day] = food
-    stocks.spares[day] = spares
+    stocks.spares[day] =
+      spares.waterRecycler + spares.o2Generator + spares.co2Scrubber + spares.greenhouse
   }
 
   return { survived: !failure, failure, stocks, componentEvents: [] }
