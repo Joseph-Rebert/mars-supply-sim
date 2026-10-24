@@ -3,9 +3,11 @@ import { CargoManifest } from './components/CargoManifest'
 import { fmt } from './components/format'
 import { MissionSetupForm } from './components/MissionSetupForm'
 import { Panel } from './components/Panel'
+import { PlanComparison } from './components/PlanComparison'
 import { ResultsView } from './components/ResultsView'
 import type { FixState } from './components/WeakestLinkCallout'
 import { suggestFix, weakestLink, type WeakestLink } from './lib/analysis'
+import type { SavedRun } from './lib/compare'
 import { runBlockedReason } from './lib/launchDates'
 import { presetById, PRESETS, type PresetId } from './lib/presets'
 import { DEFAULT_RUN_OPTIONS, runMission } from './lib/sim'
@@ -35,8 +37,16 @@ function App() {
   // The fix found for a specific run; anything else means that run's search is still going.
   const [fix, setFix] = useState<{ for: Run; state: FixState } | null>(null)
   const [applying, setApplying] = useState(false)
+  // Up to two saved runs for side-by-side comparison, kept in memory only.
+  const [saved, setSaved] = useState<{ a?: SavedRun; b?: SavedRun }>({})
   const blockedReason = useMemo(() => runBlockedReason(plan), [plan])
   const stale = run.plan !== plan
+
+  const saveRun = (slot: 'a' | 'b') =>
+    setSaved((s) => ({
+      ...s,
+      [slot]: { name: slot.toUpperCase(), plan: run.plan, result: run.result },
+    }))
 
   useEffect(() => {
     let cancelled = false
@@ -69,10 +79,17 @@ function App() {
   function applyFix() {
     if (fixState === 'searching' || fixState.status !== 'fix') return
     const fixed = fixState.plan
+    const before = run
     setApplying(true)
     afterPaint(() => {
+      const after = simulate(fixed)
       editPlan(fixed)
-      setRun(simulate(fixed))
+      setRun(after)
+      // The comparison shows the fix right away: the previous run as Before, the fixed one as After.
+      setSaved({
+        a: { name: 'Before', plan: before.plan, result: before.result },
+        b: { name: 'After', plan: after.plan, result: after.result },
+      })
       setApplying(false)
     })
   }
@@ -140,6 +157,33 @@ function App() {
             applying={applying}
             onApplyFix={applyFix}
           />
+          <Panel title="Compare plans">
+            <div className="comparison-actions">
+              <button type="button" className="btn btn-small" onClick={() => saveRun('a')}>
+                Save run as A
+              </button>
+              <button type="button" className="btn btn-small" onClick={() => saveRun('b')}>
+                Save run as B
+              </button>
+              <button
+                type="button"
+                className="btn btn-small"
+                disabled={!saved.a && !saved.b}
+                onClick={() => setSaved({})}
+              >
+                Clear
+              </button>
+            </div>
+            {saved.a && saved.b ? (
+              <PlanComparison a={saved.a} b={saved.b} />
+            ) : (
+              <p className="hint">
+                {saved.a || saved.b
+                  ? `Saved ${saved.a ? 'A' : 'B'}. Run another plan (or pick a scenario) and save it as ${saved.a ? 'B' : 'A'}.`
+                  : 'Save this run as A, change the plan or scenario, run again and save as B.'}
+              </p>
+            )}
+          </Panel>
         </div>
       </main>
     </div>
