@@ -507,6 +507,14 @@ export const DESTINATION_PROFILES: Record<Destination, DestinationProfile> = {
   },
 }
 
+// ---------- Launch cost (GEA-42) ----------
+
+// Source: NASA, "NASA Awards Launch Services Contract for Europa Clipper Mission" (July 2021): Falcon Heavy, "The total
+// contract award amount for launch services is approximately $178 million"; NASA OIG IG-24-001 (2023) gives the same
+// $178M. https://www.nasa.gov/news-release/nasa-awards-launch-services-contract-for-europa-clipper-mission/
+// ASSUMPTION: every cargo flight costs one expendable Falcon Heavy at that price (the payload curve we use).
+export const LAUNCH_COST_USD = 178e6
+
 // ---------- Sources list (for the pitch deck and an in-app credits panel) ----------
 
 // Source: this file's citations, collected.
@@ -579,6 +587,10 @@ export const SOURCES: readonly { title: string; url: string }[] = [
   {
     title: 'USDA FoodData Central, SR Legacy',
     url: 'https://fdc.nal.usda.gov/',
+  },
+  {
+    title: 'NASA: Europa Clipper launch services contract, Falcon Heavy, ~$178M (2021)',
+    url: 'https://www.nasa.gov/news-release/nasa-awards-launch-services-contract-for-europa-clipper-mission/',
   },
   {
     title: 'Jones, ISS ECLSS ORU reliability, ICES-2019-11',
