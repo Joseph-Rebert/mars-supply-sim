@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CargoManifest } from './components/CargoManifest'
+import { CrewRoster } from './components/CrewRoster'
 import { fmt } from './components/format'
 import { MissionClock } from './components/MissionClock'
 import { MissionSetupForm } from './components/MissionSetupForm'
@@ -216,6 +217,10 @@ function App() {
             )}
           </Panel>
         </div>
+
+        <Panel title="Crew" className="crew-row">
+          <CrewRoster plan={plan} onChange={editPlan} result={run.result} resultPlan={run.plan} />
+        </Panel>
       </main>
     </div>
   )

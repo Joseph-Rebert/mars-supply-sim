@@ -44,6 +44,8 @@ export type ComponentSpec = {
 export type CrewMember = {
   id: string
   name: string
+  /** Job on the crew, for the roster card. Display only. */
+  role?: string
   sex: 'female' | 'male'
   ageYears: number
   massKg: number
@@ -278,4 +280,6 @@ export type SimResult = {
   totalLaunchMassKg: number
   /** Health score (0–100) band per crew member id. Present once Crew Diet & Health lands. */
   crewHealth?: Record<string, Band>
+  /** Median body state at the end of the run (or at failure) per crew member id, for the roster cards. */
+  crewBody?: Record<string, Pick<BodyState, 'boneLossPct' | 'muscleLossPct' | 'massLossPct'>>
 }

@@ -32,6 +32,7 @@ export function fakePlan(): MissionPlan {
       {
         id: 'c1',
         name: 'Reyes',
+        role: 'Commander',
         sex: 'female',
         ageYears: 41,
         massKg: 62,
@@ -42,6 +43,7 @@ export function fakePlan(): MissionPlan {
       {
         id: 'c2',
         name: 'Okafor',
+        role: 'Flight engineer',
         sex: 'male',
         ageYears: 38,
         massKg: 81,
@@ -52,6 +54,7 @@ export function fakePlan(): MissionPlan {
       {
         id: 'c3',
         name: 'Lindqvist',
+        role: 'Medical officer',
         sex: 'female',
         ageYears: 35,
         massKg: 58,
@@ -62,6 +65,7 @@ export function fakePlan(): MissionPlan {
       {
         id: 'c4',
         name: 'Tanaka',
+        role: 'Life support engineer',
         sex: 'male',
         ageYears: 46,
         massKg: 74,
