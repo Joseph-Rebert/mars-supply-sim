@@ -8,6 +8,7 @@ import {
   ELECTROLYSIS_WATER_KG_PER_KG_O2,
   GREENHOUSE_FOOD_KG_PER_M2_DAY,
 } from './data'
+import { crewFoodKgPerDay } from './crew'
 import { daysBetween } from './dates'
 import { cargoArrivals, totalLaunchMassKg } from './manifest'
 import { mulberry32, type Rng } from './rng'
@@ -19,6 +20,7 @@ import {
   type CargoFlight,
   type ComponentEvent,
   type ComponentKey,
+  type ComponentSpec,
   type ConsumableKey,
   type FailureCause,
   type MissionPlan,
@@ -46,7 +48,8 @@ export function dailyRates(plan: MissionPlan): DailyRates {
   const consumeKg = {
     o2: crew * CREW_NEEDS_KG_PER_CREW_DAY.o2,
     water: crew * CREW_NEEDS_KG_PER_CREW_DAY.water,
-    food: crew * CREW_NEEDS_KG_PER_CREW_DAY.food,
+    // Personal needs (GEA-17) when every crew member has a full profile; else the BVAD flat rate.
+    food: crewFoodKgPerDay(plan.crew) ?? crew * CREW_NEEDS_KG_PER_CREW_DAY.food,
   }
   const { waterRecoveryRate, o2Source, greenhouse } = plan.lifeSupport
   const profile = DESTINATION_PROFILES[plan.destination]
@@ -120,13 +123,17 @@ const AWAITING_SPARE = Infinity
  * Each day: cargo lands → repairs finish → installed, online components fail with p = 1 / MTBF
  * (a spare starts a repair; none leaves it down until one arrives) → consume / recycle / produce.
  */
-export function runOnce(plan: MissionPlan, rng: Rng): RunResult {
+export function runOnce(
+  plan: MissionPlan,
+  rng: Rng,
+  components: Record<ComponentKey, ComponentSpec> = COMPONENTS,
+): RunResult {
   const days = plan.durationDays
   const rates = dailyRates(plan)
   const arrivals = deliveries(plan)
   const installed = installedComponents(plan)
   const failProbability = {} as Record<ComponentKey, number>
-  for (const c of COMPONENT_KEYS) failProbability[c] = 1 / COMPONENTS[c].mtbfDays
+  for (const c of COMPONENT_KEYS) failProbability[c] = 1 / components[c].mtbfDays
 
   // Day a component comes back: ONLINE, a repair-finish day, or AWAITING_SPARE.
   const downUntil: Record<ComponentKey, number> = {
@@ -175,12 +182,12 @@ export function runOnce(plan: MissionPlan, rng: Rng): RunResult {
         if (downUntil[c] === AWAITING_SPARE) {
           if (spareStock[c] > 0) {
             spareStock[c]--
-            downUntil[c] = day + COMPONENTS[c].repairDays
+            downUntil[c] = day + components[c].repairDays
           }
         } else if (downUntil[c] === ONLINE && rng() < failProbability[c]) {
           const spareUsed = spareStock[c] > 0
           if (spareUsed) spareStock[c]--
-          downUntil[c] = spareUsed ? day + COMPONENTS[c].repairDays : AWAITING_SPARE
+          downUntil[c] = spareUsed ? day + components[c].repairDays : AWAITING_SPARE
           events.push({ day, component: c, type: 'failed', spareUsed })
         }
       }
@@ -260,7 +267,7 @@ export function runMission(
   plan: MissionPlan,
   options: RunOptions = DEFAULT_RUN_OPTIONS,
 ): SimResult {
-  const { runs, seed } = options
+  const { runs, seed, components = COMPONENTS } = options
   if (!Number.isInteger(runs) || runs < 1) throw new RangeError(`runs must be ≥ 1, got ${runs}`)
   const days = plan.durationDays
   const rng = mulberry32(seed)
@@ -270,7 +277,7 @@ export function runMission(
   const failures: FailureCause[] = []
   let survived = 0
   for (let run = 0; run < runs; run++) {
-    const result = runOnce(plan, rng)
+    const result = runOnce(plan, rng, components)
     if (result.failure) failures.push(result.failure)
     else survived++
     for (const k of RESOURCE_KEYS) {
