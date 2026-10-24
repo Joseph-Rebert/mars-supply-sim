@@ -279,6 +279,10 @@ export const MOON_TRANSFER_C3_KM2_S2 = -2
 // burn (LOI-1 Δv ≈ 889 m/s, Apollo 11 Mission Report, NASA MSC-00171). Display only.
 export const MOON_ARRIVAL_VINF_KM_S = 0.9
 
+// ASSUMPTION: one Moon cargo flight every 180 days for default manifests. The Moon has no launch windows and no
+// published surface-base resupply schedule exists, so this is a planning placeholder, not a constraint.
+export const MOON_RESUPPLY_CADENCE_DAYS = 180
+
 // ---------- Destination profiles (GEA-12) ----------
 
 // Source: standard gravity 9.80665 m/s² (BIPM SI Brochure, 9th ed.).
@@ -334,6 +338,7 @@ export const DESTINATION_PROFILES: Record<Destination, DestinationProfile> = {
       c3: MOON_TRANSFER_C3_KM2_S2,
       vInfArrival: MOON_ARRIVAL_VINF_KM_S,
       distanceKm: EARTH_MOON_DISTANCE_KM,
+      resupplyCadenceDays: MOON_RESUPPLY_CADENCE_DAYS,
     },
     baseVehiclePayloadKg: MOON_BASE_PAYLOAD_KG,
     isruO2KgPerDay: LUNAR_REGOLITH_O2_KG_PER_DAY,

@@ -1,6 +1,8 @@
 // Pure MissionPlan edits used by the setup form, so the UI never builds plans by hand.
 
+import { DESTINATION_PROFILES } from './data'
 import { daysBetween } from './dates'
+import { withDefaultFlights } from './manifest'
 import { launchWindows } from './transfers'
 import type { CrewMember, Destination, MissionPlan } from './types'
 
@@ -104,6 +106,12 @@ export function withCrewSize(plan: MissionPlan, size: number): MissionPlan {
   const ids = new Set(kept.map((c) => c.id))
   const added = CREW_ROSTER.filter((c) => !ids.has(c.id)).slice(0, n - kept.length)
   return { ...plan, crew: [...kept, ...added] }
+}
+
+/** Switches destination: its vehicle payload, and each flight moved to the default date nearest its landing. */
+export function withDestination(plan: MissionPlan, destination: Destination): MissionPlan {
+  const { baseVehiclePayloadKg } = DESTINATION_PROFILES[destination]
+  return withDefaultFlights({ ...plan, destination, baseVehiclePayloadKg }, plan)
 }
 
 /**

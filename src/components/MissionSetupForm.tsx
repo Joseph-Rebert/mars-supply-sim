@@ -13,6 +13,7 @@ import {
   monthsToDays,
   resupplyCadenceDays,
   withCrewSize,
+  withDestination,
 } from '../lib/plan'
 import type { Destination, MissionPlan, O2Source, ReadinessTier } from '../lib/types'
 import { Readout } from './Readout'
@@ -149,7 +150,7 @@ export function MissionSetupForm({ plan, onChange, onRun, runBlockedReason }: Pr
           { value: 'mars', label: 'Mars' },
           { value: 'moon', label: 'Moon' },
         ]}
-        onChange={(destination) => onChange({ ...plan, destination })}
+        onChange={(destination) => onChange(withDestination(plan, destination))}
       />
       <div className="readouts">
         <Readout label="Comms delay" value={commsDelayLabel(plan.destination)} />
