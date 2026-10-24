@@ -1,8 +1,17 @@
-import { describe, expect, it } from 'vitest'
-import { missionMonth, weakestLink } from './analysis'
+import { beforeAll, describe, expect, it } from 'vitest'
+import {
+  emergencyLaunchDate,
+  missionMonth,
+  suggestFix,
+  weakestLink,
+  type SuggestedFix,
+} from './analysis'
+import { addDays, daysBetween } from './dates'
 import { fakePlan } from './fake'
+import { transferFor } from './transfers'
+import { flightCapacity, overCapacityFlights, totalLaunchMassKg } from './manifest'
 import { runMission } from './sim'
-import type { FailureCause, SimResult } from './types'
+import type { FailureCause, MissionPlan, SimResult } from './types'
 
 function result(runs: number, survivalRate: number, failures: FailureCause[]): SimResult {
   return {
@@ -16,6 +25,9 @@ function result(runs: number, survivalRate: number, failures: FailureCause[]): S
     totalLaunchMassKg: 0,
   }
 }
+
+// Fewer runs where the test checks behaviour, not the UI's exact numbers, to keep the suite light.
+const LIGHT = { runs: 300, seed: 1 }
 
 const range = (from: number, n: number) => Array.from({ length: n }, (_, i) => from + i)
 
@@ -124,11 +136,126 @@ describe('weakestLink', () => {
   })
 
   it('finds the demo story in the real default plan: recycler spares run out', () => {
-    const l = weakestLink(runMission(fakePlan()))
+    const l = weakestLink(runMission(fakePlan(), LIGHT))
     if (l.status !== 'atRisk') throw new Error('expected atRisk')
     expect(l.top.key).toBe('water/waterRecycler')
     expect(l.sentence).toMatch(
       /^In \d+% of runs, water runs out around month \d+ because the water recycler has no spares left$/,
     )
+  })
+})
+
+describe('suggestFix', () => {
+  // Real Monte Carlo searches: computed once, with room for a slow CI machine.
+  const SLOW = 30_000
+  let draft: MissionPlan
+  let draftResult: SimResult
+  let fix: SuggestedFix
+  let fixMs: number
+
+  beforeAll(() => {
+    draft = fakePlan()
+    draftResult = runMission(draft)
+    const start = performance.now()
+    fix = suggestFix(draft, draftResult)
+    fixMs = performance.now() - start
+  }, SLOW)
+
+  it('lifts the draft plan above 90% by fixing the water recycler spares, in time', () => {
+    if (fix.status !== 'fix') throw new Error(fix.sentence)
+    expect(fix.survivalBefore).toBe(draftResult.survivalRate)
+    expect(fix.survivalAfter).toBeGreaterThanOrEqual(0.9)
+    expect(fix.description).toMatch(/water recycler spare/)
+    expect(fix.sentence).toBe(
+      `${fix.description} → ${Math.round(fix.survivalBefore * 100)}% → ${Math.round(fix.survivalAfter * 100)}%`,
+    )
+    // Lands before the month-22 failure: the late Jan 2031 spares move to the Dec 2028 window.
+    expect(fix.kind).toBe('moveSpares')
+  })
+
+  it(
+    'returns a plan the UI can run as-is, matching the promised odds',
+    () => {
+      if (fix.status !== 'fix') throw new Error(fix.sentence)
+      expect(overCapacityFlights(fix.plan)).toEqual([])
+      expect(runMission(fix.plan).survivalRate).toBe(fix.survivalAfter)
+      expect(fix.massDeltaKg).toBeCloseTo(totalLaunchMassKg(fix.plan) - totalLaunchMassKg(draft), 6)
+      expect(draft).toEqual(fakePlan()) // input untouched
+    },
+    SLOW,
+  )
+
+  it('finishes in under 3 s', () => {
+    expect(fixMs).toBeLessThan(3000)
+  })
+
+  it(
+    'swaps out other cargo instead of breaking a full flight’s mass limit',
+    () => {
+      const full = fakePlan()
+      // Fill every flight to its date-adjusted limit with water / food.
+      for (const f of full.flights) {
+        const c = flightCapacity(full, f)
+        const room = c.capacityKg - c.massKg
+        if (f.id === 'f1') f.consumablesKg.water += Math.floor(room / 1.1)
+        else f.consumablesKg.food += Math.floor(room / (1 + 0.43 / 1.96))
+      }
+      expect(overCapacityFlights(full)).toEqual([])
+      const r = suggestFix(full, runMission(full, LIGHT))
+      if (r.status !== 'fix') throw new Error(r.sentence)
+      expect(overCapacityFlights(r.plan)).toEqual([])
+      expect(r.swappedOutKg).toBeGreaterThan(0)
+      expect(r.description).toMatch(/swap out [\d ]+ kg of shipped/)
+    },
+    SLOW,
+  )
+
+  it(
+    'ships more of a resource when too little was sent',
+    () => {
+      const lean = fakePlan()
+      lean.flights[1].consumablesKg.food = 5200
+      const r = suggestFix(lean, runMission(lean, LIGHT))
+      if (r.status !== 'fix') throw new Error(r.sentence)
+      expect(r.kind).toBe('addConsumables')
+      expect(r.description).toMatch(/^Ship [\d ]+ kg more food on Cargo lander/)
+      expect(r.survivalAfter).toBeGreaterThan(r.survivalBefore)
+      expect(overCapacityFlights(r.plan)).toEqual([])
+    },
+    SLOW,
+  )
+
+  it('picks the highest-capacity emergency launch that still lands before the failure', () => {
+    // Draft plan starts 2029-09-01. Nothing launched can land between day 0 and day 300 with any
+    // payload: those dates are all off-window, past the arrival v∞ cap. The planets set the schedule.
+    expect(emergencyLaunchDate(draft, 300)).toBeUndefined()
+
+    // Landing before day 700 is possible ahead of the 2030–31 window, at reduced capacity.
+    const date = emergencyLaunchDate(draft, 700)!
+    const t = transferFor('mars', date)
+    const lands = daysBetween(draft.startDate, t.arrivalDate)
+    expect(lands).toBeGreaterThanOrEqual(0)
+    expect(lands).toBeLessThan(700)
+    expect(t.payloadFactor).toBeGreaterThan(0)
+    expect(t.payloadFactor).toBeLessThan(1)
+    // No other launch landing in that span carries more.
+    for (let back = 1; back <= 400; back++) {
+      const other = transferFor('mars', addDays(draft.startDate, 700 - back))
+      const otherLands = daysBetween(draft.startDate, other.arrivalDate)
+      if (otherLands >= 0 && otherLands < 700) {
+        expect(other.payloadFactor).toBeLessThanOrEqual(t.payloadFactor)
+      }
+    }
+    // Moon: every date has full capacity, so it's the latest launch that lands in time: day 296 + 3.
+    const moon = { ...draft, destination: 'moon' as const }
+    expect(emergencyLaunchDate(moon, 300)).toBe(addDays(draft.startDate, 296))
+  })
+
+  it('says all clear without searching when the plan already survives', () => {
+    const clear: SimResult = { ...draftResult, survivalRate: 1, failures: [] }
+    expect(suggestFix(draft, clear)).toEqual({
+      status: 'allClear',
+      sentence: 'All clear: the crew survives in 100.0% of runs.',
+    })
   })
 })
