@@ -1041,3 +1041,70 @@ p {
     display: none;
   }
 }
+
+/* ---------- Plan comparison (GEA-33) ---------- */
+
+.comparison {
+  display: grid;
+  gap: 12px;
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: 6px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+
+.comparison-table th:first-child {
+  padding-left: 0;
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.comparison-table thead th {
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.comparison-table tbody tr:first-child td {
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+
+.comparison-links {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+}
+
+.comparison-links dt {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+}
+
+.comparison-links dd {
+  margin: 0;
+}
+
+.comparison-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
