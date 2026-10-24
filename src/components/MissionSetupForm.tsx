@@ -13,6 +13,8 @@ import {
   monthsToDays,
   resupplyCadenceDays,
   withCrewSize,
+  withDestination,
+  withDurationDays,
 } from '../lib/plan'
 import type { Destination, MissionPlan, O2Source, ReadinessTier } from '../lib/types'
 import { Readout } from './Readout'
@@ -22,6 +24,8 @@ type Props = {
   onChange: (plan: MissionPlan) => void
   /** Omitted until the Monte Carlo runner exists (GEA-22); the button then shows why it's disabled. */
   onRun?: () => void
+  /** Why the plan can't run (e.g. a flight over its mass limit); disables the run button. */
+  blocker?: string | null
 }
 
 const DURATION_MONTHS = { min: 6, max: 36 }
@@ -124,7 +128,7 @@ function Slider(props: {
   )
 }
 
-export function MissionSetupForm({ plan, onChange, onRun }: Props) {
+export function MissionSetupForm({ plan, onChange, onRun, blocker }: Props) {
   const { lifeSupport } = plan
   const months = daysToMonths(plan.durationDays)
   const recoveryPct = Math.round(lifeSupport.waterRecoveryRate * 100)
@@ -147,7 +151,7 @@ export function MissionSetupForm({ plan, onChange, onRun }: Props) {
           { value: 'mars', label: 'Mars' },
           { value: 'moon', label: 'Moon' },
         ]}
-        onChange={(destination) => onChange({ ...plan, destination })}
+        onChange={(destination) => onChange(withDestination(plan, destination))}
       />
       <div className="readouts">
         <Readout label="Comms delay" value={commsDelayLabel(plan.destination)} />
@@ -168,7 +172,7 @@ export function MissionSetupForm({ plan, onChange, onRun }: Props) {
         value={months}
         min={DURATION_MONTHS.min}
         max={DURATION_MONTHS.max}
-        onChange={(m) => onChange({ ...plan, durationDays: monthsToDays(m) })}
+        onChange={(m) => onChange(withDurationDays(plan, monthsToDays(m)))}
       />
       <Slider
         label="Water recovery"
@@ -225,10 +229,16 @@ export function MissionSetupForm({ plan, onChange, onRun }: Props) {
         />
       </div>
 
-      <button className="btn btn-primary btn-block" type="submit" disabled={!onRun}>
+      <button className="btn btn-primary btn-block" type="submit" disabled={!onRun || !!blocker}>
         Run mission
       </button>
-      {!onRun && <p className="hint">Runs once the Monte Carlo runner lands (GEA-22).</p>}
+      {blocker ? (
+        <p className="hint is-critical" role="status">
+          ▼ {blocker}
+        </p>
+      ) : (
+        !onRun && <p className="hint">Runs once the Monte Carlo runner lands (GEA-22).</p>
+      )}
     </form>
   )
 }

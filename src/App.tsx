@@ -1,15 +1,18 @@
 import { useMemo, useState } from 'react'
+import { CargoManifest } from './components/CargoManifest'
 import { EChart, type EChartOption } from './components/EChart'
+import { fmt } from './components/format'
 import { MissionSetupForm } from './components/MissionSetupForm'
 import { Panel } from './components/Panel'
-import { Readout } from './components/Readout'
 import { StatTile, type Tone } from './components/StatTile'
 import { cssVar, RESOURCE_LABELS, resourceColors } from './components/themeColors'
 import { fakePlan, fakeResult } from './lib/fake'
+import { manifestBlocker } from './lib/manifest'
+import { withDestination } from './lib/plan'
 import { CONSUMABLE_KEYS, type SimResult } from './lib/types'
 
-// App state is one MissionPlan edited by the setup form. Results are placeholders from fakeResult()
-// until the runner (GEA-22) and results view (GEA-27) land; the manifest editor is GEA-16.
+// App state is one MissionPlan edited by the setup form and cargo manifest. Results are placeholders
+// from fakeResult() until the runner (GEA-22) and results view (GEA-27) land.
 
 const TONE_LABEL: Record<Tone, string> = {
   nominal: '● Nominal',
@@ -21,13 +24,6 @@ function survivalTone(rate: number): Tone {
   if (rate >= 0.9) return 'nominal'
   if (rate >= 0.7) return 'caution'
   return 'critical'
-}
-
-/** Console-style thousands separator: 10 550. */
-function fmt(n: number): string {
-  return Math.round(n)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
 
 function timelineOption(result: SimResult): EChartOption {
@@ -98,7 +94,9 @@ function timelineOption(result: SimResult): EChartOption {
 }
 
 function App() {
-  const [plan, setPlan] = useState(fakePlan)
+  // Snap the draft plan's flights to real launch windows and the destination's vehicle payload.
+  const [plan, setPlan] = useState(() => withDestination(fakePlan(), 'mars'))
+  const blocker = manifestBlocker(plan)
   // Placeholder results stay fixed until the real runner (GEA-22) and results view (GEA-27) land.
   const result = useMemo(() => fakeResult(), [])
   const option = useMemo(() => timelineOption(result), [result])
@@ -119,19 +117,14 @@ function App() {
       <main className="layout">
         <div className="column">
           <Panel title="Mission setup">
-            <MissionSetupForm plan={plan} onChange={setPlan} />
-          </Panel>
-          <Panel title="Cargo manifest">
-            <div className="readouts">
-              {plan.flights.map((f) => (
-                <Readout key={f.id} label={f.label} value={f.launchDate} />
-              ))}
-            </div>
-            <p className="note">Launch windows and mass budget arrive with GEA-16.</p>
+            <MissionSetupForm plan={plan} onChange={setPlan} blocker={blocker} />
           </Panel>
         </div>
 
         <div className="column">
+          <Panel title="Cargo manifest">
+            <CargoManifest plan={plan} onChange={setPlan} />
+          </Panel>
           <Panel title="Probability of crew survival">
             <div className="verdict">
               <div className="verdict-row">

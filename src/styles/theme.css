@@ -597,3 +597,205 @@ p {
   cursor: not-allowed;
   opacity: 0.4;
 }
+
+/* ---------- Cargo manifest ---------- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.manifest {
+  display: grid;
+  gap: 12px;
+}
+
+.manifest-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: var(--gap);
+  border-bottom: 1px solid var(--rule);
+}
+
+.manifest-summary .stat-cell {
+  padding-left: 0;
+}
+
+.manifest-summary .btn {
+  margin-bottom: 12px;
+  padding: 8px 14px;
+  font-size: var(--fs-label);
+}
+
+/* Many Moon flights scroll sideways instead of squeezing the steppers */
+.manifest-scroll {
+  overflow-x: auto;
+}
+
+.manifest-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.manifest-table th,
+.manifest-table td {
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.manifest-table th:first-child {
+  padding-left: 0;
+}
+
+.manifest-table tbody tr + tr {
+  border-top: 1px dotted var(--rule);
+}
+
+.manifest-table thead th {
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.manifest-table tfoot td,
+.manifest-table tfoot th {
+  border-top: 1px solid var(--rule-strong);
+  padding-top: 8px;
+}
+
+.manifest-item {
+  min-width: 150px;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.manifest-item-hint {
+  display: block;
+  color: var(--text-dim);
+  text-transform: none;
+}
+
+.manifest-flight {
+  min-width: 140px;
+  font-weight: 400;
+}
+
+.manifest-flight-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.manifest-flight-label {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.manifest-flight-date {
+  color: var(--text-muted);
+}
+
+.icon-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font: inherit;
+  line-height: 1;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  color: var(--critical);
+  border-color: var(--critical);
+}
+
+.stepper {
+  display: flex;
+  border: 1px solid var(--rule-strong);
+}
+
+.stepper-btn {
+  width: 28px;
+  flex: none;
+  padding: 0;
+  font: 700 var(--fs-body) / 1 var(--mono);
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background: var(--bg-raised);
+}
+
+.stepper-btn:disabled {
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.stepper-input {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 0;
+  font: inherit;
+  text-align: center;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+  appearance: textfield;
+}
+
+.stepper-input::-webkit-inner-spin-button,
+.stepper-input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.mass-bar {
+  display: grid;
+  gap: 4px;
+}
+
+.mass-bar-track {
+  height: 10px;
+  border: 1px solid var(--rule-strong);
+}
+
+.mass-bar-fill {
+  height: 100%;
+  background: currentColor;
+}
+
+.mass-bar-text {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.mass-bar-text span:first-child {
+  color: var(--text-muted);
+}
+
+.hint.is-critical {
+  color: var(--critical);
+}
