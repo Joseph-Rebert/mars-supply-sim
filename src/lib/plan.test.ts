@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { DESTINATION_FACTS } from './data'
 import { fakePlan } from './fake'
-import { CREW_ROSTER, daysToMonths, monthsToDays, withCrewSize } from './plan'
+import { CREW_ROSTER, daysToMonths, monthsToDays, resupplyCadenceDays, withCrewSize } from './plan'
 
 describe('withCrewSize', () => {
   it('adds roster members after the existing crew, with unique ids', () => {
@@ -34,14 +33,15 @@ describe('months ↔ days', () => {
   })
 })
 
-describe('DESTINATION_FACTS', () => {
-  it('gives Mars a 3.0–22.3 min one-way delay (54.6–401.3 M km at c)', () => {
-    expect(DESTINATION_FACTS.mars.commsDelaySec.min / 60).toBeCloseTo(3.04, 2)
-    expect(DESTINATION_FACTS.mars.commsDelaySec.max / 60).toBeCloseTo(22.31, 2)
+describe('resupplyCadenceDays', () => {
+  it('spaces Mars windows about one synodic period (779.94 d, NASA Mars Fact Sheet) apart', () => {
+    const days = resupplyCadenceDays('mars')
+    expect(days).not.toBeNull()
+    expect(days!).toBeGreaterThan(740)
+    expect(days!).toBeLessThan(820)
   })
 
-  it('gives the Moon a ~1.28 s delay and no launch window', () => {
-    expect(DESTINATION_FACTS.moon.commsDelaySec.min).toBeCloseTo(1.282, 3)
-    expect(DESTINATION_FACTS.moon.resupplyEveryDays).toBe(0)
+  it('returns null for the Moon, where cargo can launch any day', () => {
+    expect(resupplyCadenceDays('moon')).toBeNull()
   })
 })

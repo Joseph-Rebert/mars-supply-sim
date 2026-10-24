@@ -2,14 +2,12 @@
 // Rule: each exported constant gets a `// Source:` comment (URL or document name);
 // extrapolated or assumed values are marked `// ASSUMPTION:`.
 // Primary reference is BVAD Rev2 (2022); values are not mixed with Rev1 (2018), which differs.
-// TODO(GEA-12): full Mars vs. Moon destination profiles (DESTINATION_FACTS is the display subset).
 
 import type {
   ComponentKey,
   ComponentSpec,
   ConsumableKey,
   Destination,
-  DestinationFacts,
   DestinationProfile,
   O2Source,
   ReadinessTier,
@@ -277,41 +275,6 @@ export const MOON_TRANSFER_C3_KM2_S2 = -2
 // burn (LOI-1 Δv ≈ 889 m/s, Apollo 11 Mission Report, NASA MSC-00171). Display only.
 export const MOON_ARRIVAL_VINF_KM_S = 0.9
 
-// ---------- Destinations (display facts; GEA-12 builds full profiles) ----------
-
-// Source: CODATA speed of light in vacuum, 299,792.458 km/s (exact by SI definition).
-export const LIGHT_KM_PER_SEC = 299_792.458
-
-// Source: NASA NSSDC Mars Fact Sheet, distance from Earth "Minimum (10^6 km) 54.6",
-// https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html
-export const MARS_MIN_DISTANCE_KM = 54.6e6
-
-// Source: NASA NSSDC Mars Fact Sheet, distance from Earth "Maximum (10^6 km) 401.3".
-export const MARS_MAX_DISTANCE_KM = 401.3e6
-
-// Source: NASA NSSDC Mars Fact Sheet, "Synodic period (days) 779.94" — one launch window per period.
-export const MARS_SYNODIC_PERIOD_DAYS = 779.94
-
-// Source: light time from the distances above; ISRU readiness from MOXIE (JPL 2023) and CaRD (Paz et al. 2026).
-// Moon resupply: no orbital-alignment window (launch any day).
-export const DESTINATION_FACTS: Record<Destination, DestinationFacts> = {
-  mars: {
-    label: 'Mars',
-    commsDelaySec: {
-      min: MARS_MIN_DISTANCE_KM / LIGHT_KM_PER_SEC,
-      max: MARS_MAX_DISTANCE_KM / LIGHT_KM_PER_SEC,
-    },
-    resupplyEveryDays: MARS_SYNODIC_PERIOD_DAYS,
-    isru: { label: 'MOXIE, scaled up', readiness: 'demonstrated' },
-  },
-  moon: {
-    label: 'Moon',
-    commsDelaySec: {
-      min: EARTH_MOON_DISTANCE_KM / LIGHT_KM_PER_SEC,
-      max: EARTH_MOON_DISTANCE_KM / LIGHT_KM_PER_SEC,
-    },
-    resupplyEveryDays: 0,
-    isru: { label: 'Regolith extraction', readiness: 'concept' },
 // ---------- Destination profiles (GEA-12) ----------
 
 // Source: standard gravity 9.80665 m/s² (BIPM SI Brochure, 9th ed.).
@@ -437,14 +400,6 @@ export const SOURCES: readonly { title: string; url: string }[] = [
   {
     title: 'Briggs, Gibson & Sanzi, Kilopower, NASA/TM-2018-219702',
     url: 'https://ntrs.nasa.gov/api/citations/20180001487/downloads/20180001487.pdf',
-  },
-  {
-    title: 'NASA NSSDC Mars Fact Sheet',
-    url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html',
-  },
-  {
-    title: 'NASA NSSDC Moon Fact Sheet',
-    url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html',
   },
   {
     title: 'Jones, ISS ECLSS ORU reliability, ICES-2019-11',

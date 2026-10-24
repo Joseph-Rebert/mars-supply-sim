@@ -1,6 +1,8 @@
 // Pure MissionPlan edits used by the setup form, so the UI never builds plans by hand.
 
-import type { CrewMember, MissionPlan } from './types'
+import { daysBetween } from './dates'
+import { launchWindows } from './transfers'
+import type { CrewMember, Destination, MissionPlan } from './types'
 
 export const CREW_MIN = 2
 export const CREW_MAX = 8
@@ -102,4 +104,16 @@ export function withCrewSize(plan: MissionPlan, size: number): MissionPlan {
   const ids = new Set(kept.map((c) => c.id))
   const added = CREW_ROSTER.filter((c) => !ids.has(c.id)).slice(0, n - kept.length)
   return { ...plan, crew: [...kept, ...added] }
+}
+
+/**
+ * Mean days between launch windows (best date to best date), from the real transfer table.
+ * Null when cargo can launch any day (no windows).
+ */
+export function resupplyCadenceDays(destination: Destination): number | null {
+  const windows = launchWindows(destination)
+  if (windows.length < 2) return null
+  return (
+    daysBetween(windows[0].bestDate, windows[windows.length - 1].bestDate) / (windows.length - 1)
+  )
 }

@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from 'react'
 import {
-  DESTINATION_FACTS,
+  DESTINATION_PROFILES,
   O2_SOURCE_READINESS,
   WATER_RECOVERY_RATE_ISS_2023,
   WATER_RECOVERY_RATE_ISS_PRE_BPA,
@@ -11,6 +11,7 @@ import {
   DAYS_PER_MONTH,
   daysToMonths,
   monthsToDays,
+  resupplyCadenceDays,
   withCrewSize,
 } from '../lib/plan'
 import type { Destination, MissionPlan, O2Source, ReadinessTier } from '../lib/types'
@@ -34,20 +35,20 @@ const READINESS_LABEL: Record<ReadinessTier, string> = {
 }
 
 function commsDelayLabel(destination: Destination): string {
-  const { min, max } = DESTINATION_FACTS[destination].commsDelaySec
+  const { min, max } = DESTINATION_PROFILES[destination].commsDelaySeconds
   if (max < 60) return `${min.toFixed(1)} s`
   return `${Math.round(min / 60)}–${Math.round(max / 60)} min`
 }
 
 function resupplyLabel(destination: Destination): string {
-  const days = DESTINATION_FACTS[destination].resupplyEveryDays
-  return days === 0 ? 'any day' : `every ~${Math.round(days / DAYS_PER_MONTH)} mo`
+  const days = resupplyCadenceDays(destination)
+  return days === null ? 'any day' : `every ~${Math.round(days / DAYS_PER_MONTH)} mo`
 }
 
 function o2SourceHint(source: O2Source, destination: Destination): string {
   if (source === 'isru') {
-    const { label, readiness } = DESTINATION_FACTS[destination].isru
-    return `${label} · ${READINESS_LABEL[readiness]}`
+    const { isruLabel, isruReadiness } = DESTINATION_PROFILES[destination]
+    return `${isruLabel} · ${READINESS_LABEL[isruReadiness]}`
   }
   const what = source === 'electrolysis' ? 'Splits recycled water' : 'Shipped from Earth'
   return `${what} · ${READINESS_LABEL[O2_SOURCE_READINESS[source]]}`

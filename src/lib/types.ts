@@ -39,17 +39,6 @@ export type ComponentSpec = {
   readiness: ReadinessTier
 }
 
-/** Display facts for the destination toggle. GEA-12 folds these into a full DestinationProfile. */
-export type DestinationFacts = {
-  label: string
-  /** One-way Earth ↔ destination light time, seconds (closest and farthest). */
-  commsDelaySec: { min: number; max: number }
-  /** Days between cargo launch opportunities; 0 means any day. */
-  resupplyEveryDays: number
-  /** What 'isru' means at this destination, and how proven it is. */
-  isru: { label: string; readiness: ReadinessTier }
-}
-
 // ---------- Mission plan (inputs) ----------
 
 export type CrewMember = {
