@@ -5,10 +5,14 @@ import { EChart, type EChartOption } from './EChart'
 import { fmt } from './format'
 import { cssVar, RESOURCE_LABELS, resourceColors } from './themeColors'
 
+/** A span of mission days to call out, e.g. the weakest link's failure month (GEA-34). */
+export type TimelineHighlight = { startDay: number; endDay: number; label: string }
+
 type Props = {
   result: SimResult
   /** The plan that produced `result`, for resupply marker labels. */
   plan: MissionPlan
+  highlight?: TimelineHighlight
   height?: number
 }
 
@@ -17,9 +21,13 @@ type TooltipParam = { seriesName?: string; value?: unknown; color?: string }
 const SPARES_SERIES = 'Spares'
 const DISTANCE_SERIES = 'Earth–Mars'
 /** Height of the distance strip under the resource chart, px. */
-const STRIP_H = 56
+const STRIP_H = 44
 
-function timelineOption(result: SimResult, plan: MissionPlan): EChartOption {
+function timelineOption(
+  result: SimResult,
+  plan: MissionPlan,
+  highlight?: TimelineHighlight,
+): EChartOption {
   const colors = resourceColors()
   const mono = cssVar('--mono')
   const muted = cssVar('--text-muted')
@@ -28,6 +36,7 @@ function timelineOption(result: SimResult, plan: MissionPlan): EChartOption {
   const labelOf = new Map(plan.flights.map((f) => [f.id, f.label]))
   const named = new Set<string>([...CONSUMABLE_KEYS.map((k) => RESOURCE_LABELS[k]), SPARES_SERIES])
   const accent = cssVar('--accent')
+  const critical = cssVar('--critical')
   const overlays = timelineOverlays(plan)
   const distance = overlays.distanceMkm
   const closest = distance ? closestApproach(distance) : null
@@ -39,7 +48,23 @@ function timelineOption(result: SimResult, plan: MissionPlan): EChartOption {
     label: labelled
       ? { show: true, position: 'insideTop', color: accent, fontFamily: mono, fontSize: 12 }
       : { show: false },
-    data: overlays.windows.map((w) => [{ xAxis: w.startDay, name: w.label }, { xAxis: w.endDay }]),
+    data: [
+      ...overlays.windows.map((w) => [{ xAxis: w.startDay, name: w.label }, { xAxis: w.endDay }]),
+      // The weakest link's failure month, in the critical color, labelled at the bottom.
+      ...(labelled && highlight
+        ? [
+            [
+              {
+                xAxis: highlight.startDay,
+                name: highlight.label,
+                itemStyle: { color: critical, opacity: 0.16 },
+                label: { position: 'insideBottomLeft', color: critical },
+              },
+              { xAxis: highlight.endDay },
+            ],
+          ]
+        : []),
+    ],
   })
 
   // Zero line plus a vertical marker for every flight that lands mid-mission.
@@ -262,8 +287,8 @@ function timelineOption(result: SimResult, plan: MissionPlan): EChartOption {
  * P50 line + P10–P90 band per consumable (kg), median spare count (right axis), resupply markers,
  * launch-window bands, and (Mars) an Earth–Mars distance strip with launch → landing arrows.
  */
-export function ResourceTimeline({ result, plan, height = 300 }: Props) {
-  const option = useMemo(() => timelineOption(result, plan), [result, plan])
+export function ResourceTimeline({ result, plan, highlight, height = 270 }: Props) {
+  const option = useMemo(() => timelineOption(result, plan, highlight), [result, plan, highlight])
   const overlays = useMemo(() => timelineOverlays(plan), [plan])
   return (
     <>
