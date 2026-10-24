@@ -10,6 +10,8 @@ import {
   FOOD_KCAL_PER_CREW_DAY,
   GREENHOUSE_FOOD_KG_PER_M2_DAY,
   SOURCES,
+  VITAMIN_C_DECAY_PER_DAY,
+  VITAMIN_C_DECAY_PER_DAY_RANGE,
   WATER_KG_PER_CREW_DAY,
 } from './data'
 
@@ -89,5 +91,20 @@ describe('data.ts values', () => {
     const { waterRecycler, o2Generator, co2Scrubber } = COMPONENTS
     expect(waterRecycler.mtbfDays).toBeLessThan(o2Generator.mtbfDays)
     expect(waterRecycler.mtbfDays).toBeLessThan(co2Scrubber.mtbfDays)
+  })
+})
+
+describe('stored-food nutrient loss (Cooper et al. 2017)', () => {
+  it('leaves 42.5% of vitamin C after 3 years at the midpoint rate (57.5% lost)', () => {
+    expect(Math.exp(-VITAMIN_C_DECAY_PER_DAY * 1095)).toBeCloseTo(0.425, 9)
+    expect(VITAMIN_C_DECAY_PER_DAY).toBeCloseTo(7.81e-4, 6)
+  })
+
+  it('spans the published 32–83% three-year vitamin C losses', () => {
+    const left = (k: number) => Math.exp(-k * 1095)
+    expect(left(VITAMIN_C_DECAY_PER_DAY_RANGE.min)).toBeCloseTo(0.68, 9)
+    expect(left(VITAMIN_C_DECAY_PER_DAY_RANGE.max)).toBeCloseTo(0.17, 9)
+    expect(VITAMIN_C_DECAY_PER_DAY).toBeGreaterThan(VITAMIN_C_DECAY_PER_DAY_RANGE.min)
+    expect(VITAMIN_C_DECAY_PER_DAY).toBeLessThan(VITAMIN_C_DECAY_PER_DAY_RANGE.max)
   })
 })
