@@ -47,8 +47,24 @@ export type CrewMember = {
   sex: 'female' | 'male'
   ageYears: number
   massKg: number
-  activity: 'light' | 'moderate' | 'heavy'
+  activity: ActivityLevel
   exerciseMinPerDay: number
+  /** Standing height. With it the crew member has a full profile and gets personal daily needs. */
+  heightM?: number
+}
+
+export type ActivityLevel = 'light' | 'moderate' | 'heavy'
+
+/** One crew member's daily requirements (Crew Diet & Health). */
+export type DailyNeeds = {
+  energyKcal: number
+  proteinG: number
+  vitaminCMg: number
+  vitaminDUg: number
+  calciumMg: number
+  potassiumMg: number
+  /** Food mass that supplies energyKcal at the BVAD food energy density (no packaging). */
+  foodKg: number
 }
 
 /**
