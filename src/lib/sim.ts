@@ -11,6 +11,7 @@ import {
 } from './data'
 import { daysBetween } from './dates'
 import type { Rng } from './rng'
+import { transferFor } from './transfers'
 import {
   COMPONENT_KEYS,
   type CargoFlight,
@@ -64,11 +65,13 @@ export function dailyRates(plan: MissionPlan): DailyRates {
 }
 
 /**
- * Day index a flight's cargo becomes usable (≤ 0 is clamped to day 0), or null if it never arrives.
- * TODO(GEA-19): use transferFor(destination, launchDate); until then only pre-launched cargo counts.
+ * Day index a flight's cargo becomes usable: its transfer-table arrival, with anything landing on or
+ * before the start clamped to day 0 (initial stock). Null if it lands after the mission ends.
  */
 export function arrivalDay(plan: MissionPlan, flight: CargoFlight): number | null {
-  return daysBetween(plan.startDate, flight.launchDate) <= 0 ? 0 : null
+  const { arrivalDate } = transferFor(plan.destination, flight.launchDate)
+  const day = daysBetween(plan.startDate, arrivalDate)
+  return day < plan.durationDays ? Math.max(0, day) : null
 }
 
 type Delivery = {
