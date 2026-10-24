@@ -28,7 +28,7 @@ Judges weight **impact/usefulness** and **presentation/design** most. Real, sour
 - ECharts for all charts. Use the wrapper `src/components/EChart.tsx` and register new chart types there
 - Plain CSS with custom properties in `src/styles/theme.css`. No CSS frameworks
 - Vitest, Prettier, oxlint
-- Vercel auto-deploys `main`; each PR gets a preview URL
+- Vercel auto-deploys `main` to https://mars-supply-sim.vercel.app/; each PR gets a preview URL
 - Everything runs client-side
 
 ## Commands
