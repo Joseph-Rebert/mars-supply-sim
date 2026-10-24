@@ -60,7 +60,7 @@ function o2SourceHint(source: O2Source, destination: Destination): string {
 type Option<T extends string> = { value: T; label: string }
 
 /** Radio group styled as a segmented switch; arrow keys move between options. */
-function Segmented<T extends string>(props: {
+export function Segmented<T extends string>(props: {
   legend: string
   name: string
   value: T
@@ -88,7 +88,7 @@ function Segmented<T extends string>(props: {
   )
 }
 
-function Slider(props: {
+export function Slider(props: {
   label: string
   display: string
   value: number

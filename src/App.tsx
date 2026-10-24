@@ -6,6 +6,7 @@ import { MissionClock } from './components/MissionClock'
 import { MissionSetupForm } from './components/MissionSetupForm'
 import { Panel } from './components/Panel'
 import { PlanComparison } from './components/PlanComparison'
+import { PlanMissionWizard } from './components/PlanMissionWizard'
 import { ResultsView } from './components/ResultsView'
 import type { FixState } from './components/WeakestLinkCallout'
 import { suggestFix, weakestLink, type WeakestLink } from './lib/analysis'
@@ -41,6 +42,7 @@ function App() {
   // The fix found for a specific run; anything else means that run's search is still going.
   const [fix, setFix] = useState<{ for: Run; state: FixState } | null>(null)
   const [applying, setApplying] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(false)
   // Up to two saved runs for side-by-side comparison, kept in memory only.
   const [saved, setSaved] = useState<{ a?: SavedRun; b?: SavedRun }>({})
   // Set when a run throws; the last good run stays on screen under the error.
@@ -97,6 +99,13 @@ function App() {
     setPresetId(id)
   }
 
+  // A plan from the wizard replaces the current one and runs right away, like a preset.
+  const loadPlanned = (next: MissionPlan) => {
+    setPlan(next)
+    tryRun(next)
+    setPresetId(CUSTOM)
+  }
+
   function applyFix() {
     if (fixState === 'searching' || fixState.status !== 'fix') return
     const fixed = fixState.plan
@@ -146,6 +155,9 @@ function App() {
             </option>
           </select>
         </label>
+        <button type="button" className="btn btn-small" onClick={() => setWizardOpen(true)}>
+          + New mission
+        </button>
         <div className={stale ? 'app-status is-caution' : 'app-status'} role="status">
           <span className="status-dot" aria-hidden="true" />
           <span className="app-status-text">
@@ -222,6 +234,14 @@ function App() {
           <CrewRoster plan={plan} onChange={editPlan} result={run.result} resultPlan={run.plan} />
         </Panel>
       </main>
+      {wizardOpen && (
+        <PlanMissionWizard
+          open={wizardOpen}
+          from={plan}
+          onClose={() => setWizardOpen(false)}
+          onLoad={loadPlanned}
+        />
+      )}
     </div>
   )
 }
