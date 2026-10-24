@@ -849,6 +849,153 @@ p {
   border-color: var(--critical);
 }
 
+/* ---------- Weakest link + suggested fix (GEA-34) ---------- */
+
+/* The results column carries verdict, callout and timeline at 1280×720, so its sections run tighter. */
+.column + .column .section {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.verdict-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: var(--gap);
+  align-items: start;
+}
+
+.verdict-main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.verdict-main .stat-value {
+  font-size: 22px;
+}
+
+@media (max-width: 1100px) {
+  .verdict-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.callout {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule-strong);
+  border-left-width: 3px;
+  min-width: 0;
+  /* .is-critical / .is-nominal also set text color globally; only titles and bars are colored here. */
+  color: var(--text);
+}
+
+.callout.is-critical {
+  border-color: var(--critical);
+}
+
+.callout.is-nominal {
+  border-color: var(--nominal);
+}
+
+/* The fix sits in the same box, below a hairline, in the accent color. */
+.fix-section {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+}
+
+.callout-title {
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+}
+
+.callout.is-critical .callout-title {
+  color: var(--critical);
+}
+
+.callout.is-nominal .callout-title {
+  color: var(--nominal);
+}
+
+.callout .fix-section .fix-title {
+  color: var(--accent);
+}
+
+.callout-text {
+  font-size: var(--fs-label);
+  line-height: 1.4;
+}
+
+.cause-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.cause {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px 40px;
+  align-items: center;
+  gap: 8px;
+}
+
+.cause-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cause-bar {
+  height: 4px;
+  background: var(--rule);
+}
+
+.cause-bar span {
+  display: block;
+  height: 100%;
+  background: var(--critical);
+}
+
+.cause-share {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.fix-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.fix-odds {
+  font-size: var(--fs-body);
+}
+
+.fix-odds strong {
+  color: var(--nominal);
+}
+
+.fix-mass {
+  color: var(--text-muted);
+}
+
+.fix-row .btn {
+  margin-left: auto;
+  padding: 8px 16px;
+}
+
 /* ---------- Demo scenario presets (GEA-35) ---------- */
 
 .preset-picker {
