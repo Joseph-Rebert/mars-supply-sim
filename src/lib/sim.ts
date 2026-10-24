@@ -136,6 +136,9 @@ export function runOnce(
   plan: MissionPlan,
   rng: Rng,
   components: Record<ComponentKey, ComponentSpec> = COMPONENTS,
+  /** false: survival and failure only (optimizer searches): no stock/health series, and a failed
+   *  run stops early. The random stream up to the failure is identical either way. */
+  record = true,
 ): RunResult {
   const days = plan.durationDays
   const rates = dailyRates(plan)
@@ -163,15 +166,17 @@ export function runOnce(
   const health =
     nutrition &&
     createHealthTracker(plan.crew as CrewProfile[], DESTINATION_PROFILES[plan.destination].gravityG)
-  const healthScore = health
-    ? plan.crew.map(() => new Float64Array(Math.ceil(days / HEALTH_BAND_STEP_DAYS)))
-    : null
+  const healthScore =
+    health && record
+      ? plan.crew.map(() => new Float64Array(Math.ceil(days / HEALTH_BAND_STEP_DAYS)))
+      : null
 
+  const seriesLength = record ? days : 0
   const stocks: Record<ResourceKey, number[]> = {
-    o2: new Array<number>(days),
-    water: new Array<number>(days),
-    food: new Array<number>(days),
-    spares: new Array<number>(days),
+    o2: new Array<number>(seriesLength),
+    water: new Array<number>(seriesLength),
+    food: new Array<number>(seriesLength),
+    spares: new Array<number>(seriesLength),
   }
   let o2 = 0
   let water = 0
@@ -259,6 +264,10 @@ export function runOnce(
       }
     }
 
+    if (!record) {
+      if (failure) break
+      continue
+    }
     stocks.o2[day] = o2
     stocks.water[day] = water
     stocks.food[day] = food
@@ -276,6 +285,7 @@ export function runOnce(
   }
 
   const result: RunResult = { survived: !failure, failure, stocks, componentEvents: events }
+  if (!record) return result
   if (nutrition) result.nutrition = nutrition.result()
   if (health && healthScore) {
     result.healthScore = Object.fromEntries(plan.crew.map((m, i) => [m.id, healthScore[i]]))
