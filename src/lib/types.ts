@@ -24,6 +24,21 @@ export const COMPONENT_KEYS: readonly ComponentKey[] = [
   'greenhouse',
 ]
 
+/** How real a technology is today; shown as a badge so judges see what's proven. */
+export type ReadinessTier = 'flightProven' | 'demonstrated' | 'concept'
+
+/** Reliability and logistics for one life-support component (values in data.ts). */
+export type ComponentSpec = {
+  label: string
+  /** Mean time between failures. Daily failure probability = 1 / mtbfDays. */
+  mtbfDays: number
+  /** Launch mass of one spare (the ORUs most likely to fail). */
+  spareMassKg: number
+  /** Days the component is offline while a crew swaps in a spare. */
+  repairDays: number
+  readiness: ReadinessTier
+}
+
 // ---------- Mission plan (inputs) ----------
 
 export type CrewMember = {
