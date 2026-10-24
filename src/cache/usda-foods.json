@@ -1,0 +1,505 @@
+{
+ "header": {
+  "source": "USDA FoodData Central API (https://api.nal.usda.gov/fdc/v1/foods)",
+  "dataset": "SR Legacy (2018-04)",
+  "fetchedAt": "2026-10-24T16:57:18.902Z",
+  "basis": "per 100 g, as listed by USDA",
+  "nutrients": [
+   {
+    "field": "energyKcal",
+    "id": 1008,
+    "number": "208"
+   },
+   {
+    "field": "proteinG",
+    "id": 1003,
+    "number": "203"
+   },
+   {
+    "field": "fatG",
+    "id": 1004,
+    "number": "204"
+   },
+   {
+    "field": "carbsG",
+    "id": 1005,
+    "number": "205"
+   },
+   {
+    "field": "vitaminCMg",
+    "id": 1162,
+    "number": "401"
+   },
+   {
+    "field": "vitaminDUg",
+    "id": 1114,
+    "number": "328"
+   },
+   {
+    "field": "calciumMg",
+    "id": 1087,
+    "number": "301"
+   },
+   {
+    "field": "potassiumMg",
+    "id": 1092,
+    "number": "306"
+   }
+  ],
+  "missingNutrients": "stored as 0 (not analysed in SR Legacy)",
+  "lookup": "https://fdc.nal.usda.gov/food-details/{fdcId}/nutrients",
+  "menuSource": "onNasaMenu: named in Table 1 of Lane et al., Changes in Space Food over the Last 45 Years (NTRS 20060049069)"
+ },
+ "foods": [
+  {
+   "fdcId": 167535,
+   "name": "Flour tortilla",
+   "category": "bread",
+   "onNasaMenu": true,
+   "description": "Tortillas, ready-to-bake or -fry, flour, shelf stable",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 297,
+    "proteinG": 8.01,
+    "fatG": 7.58,
+    "carbsG": 49.27,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 163,
+    "potassiumMg": 133
+   }
+  },
+  {
+   "fdcId": 173325,
+   "name": "Macaroni and cheese",
+   "category": "entree",
+   "onNasaMenu": true,
+   "description": "Macaroni and Cheese, canned entree",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 82,
+    "proteinG": 3.38,
+    "fatG": 2.46,
+    "carbsG": 11.52,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 35,
+    "potassiumMg": 84
+   }
+  },
+  {
+   "fdcId": 168665,
+   "name": "Beef brisket",
+   "category": "entree",
+   "onNasaMenu": false,
+   "description": "Beef, brisket, whole, separable lean and fat, trimmed to 1/8\" fat, all grades, cooked, braised",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 331,
+    "proteinG": 25.85,
+    "fatG": 24.5,
+    "carbsG": 0,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0.4,
+    "calciumMg": 7,
+    "potassiumMg": 251
+   }
+  },
+  {
+   "fdcId": 171099,
+   "name": "Chicken",
+   "category": "entree",
+   "onNasaMenu": false,
+   "description": "Chicken, canned, meat only, with broth",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 165,
+    "proteinG": 21.77,
+    "fatG": 7.95,
+    "carbsG": 0,
+    "vitaminCMg": 2,
+    "vitaminDUg": 0.1,
+    "calciumMg": 14,
+    "potassiumMg": 138
+   }
+  },
+  {
+   "fdcId": 171986,
+   "name": "Tuna",
+   "category": "entree",
+   "onNasaMenu": false,
+   "description": "Fish, tuna, light, canned in water, without salt, drained solids",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 116,
+    "proteinG": 25.51,
+    "fatG": 0.82,
+    "carbsG": 0,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 11,
+    "potassiumMg": 237
+   }
+  },
+  {
+   "fdcId": 175180,
+   "name": "Shrimp cocktail (shrimp)",
+   "category": "entree",
+   "onNasaMenu": true,
+   "description": "Crustaceans, shrimp, cooked",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 99,
+    "proteinG": 23.98,
+    "fatG": 0.28,
+    "carbsG": 0.2,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 70,
+    "potassiumMg": 259
+   }
+  },
+  {
+   "fdcId": 172188,
+   "name": "Scrambled eggs (dried egg)",
+   "category": "breakfast",
+   "onNasaMenu": false,
+   "description": "Egg, whole, dried",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 592,
+    "proteinG": 48.05,
+    "fatG": 43.9,
+    "carbsG": 1.13,
+    "vitaminCMg": 0,
+    "vitaminDUg": 8.3,
+    "calciumMg": 244,
+    "potassiumMg": 540
+   }
+  },
+  {
+   "fdcId": 171661,
+   "name": "Oatmeal",
+   "category": "breakfast",
+   "onNasaMenu": true,
+   "description": "Cereals, oats, instant, fortified, plain, dry",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 362,
+    "proteinG": 11.92,
+    "fatG": 6.9,
+    "carbsG": 69.52,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 351,
+    "potassiumMg": 366
+   }
+  },
+  {
+   "fdcId": 170567,
+   "name": "Almonds",
+   "category": "snack",
+   "onNasaMenu": true,
+   "description": "Nuts, almonds",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 579,
+    "proteinG": 21.15,
+    "fatG": 49.93,
+    "carbsG": 21.55,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 269,
+    "potassiumMg": 733
+   }
+  },
+  {
+   "fdcId": 170571,
+   "name": "Cashews",
+   "category": "snack",
+   "onNasaMenu": true,
+   "description": "Nuts, cashew nuts, dry roasted, without salt added",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 574,
+    "proteinG": 15.31,
+    "fatG": 46.35,
+    "carbsG": 32.69,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 45,
+    "potassiumMg": 565
+   }
+  },
+  {
+   "fdcId": 172470,
+   "name": "Peanut butter",
+   "category": "snack",
+   "onNasaMenu": true,
+   "description": "Peanut butter, smooth style, without salt",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 598,
+    "proteinG": 22.21,
+    "fatG": 51.36,
+    "carbsG": 22.31,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 49,
+    "potassiumMg": 558
+   }
+  },
+  {
+   "fdcId": 172746,
+   "name": "Crackers",
+   "category": "snack",
+   "onNasaMenu": false,
+   "description": "Crackers, saltines (includes oyster, soda, soup)",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 418,
+    "proteinG": 9.46,
+    "fatG": 8.64,
+    "carbsG": 74.05,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 19,
+    "potassiumMg": 152
+   }
+  },
+  {
+   "fdcId": 173941,
+   "name": "Dried apricots",
+   "category": "fruit",
+   "onNasaMenu": false,
+   "description": "Apricots, dried, sulfured, uncooked",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 241,
+    "proteinG": 3.39,
+    "fatG": 0.51,
+    "carbsG": 62.64,
+    "vitaminCMg": 1,
+    "vitaminDUg": 0,
+    "calciumMg": 55,
+    "potassiumMg": 1162
+   }
+  },
+  {
+   "fdcId": 169934,
+   "name": "Dried peaches",
+   "category": "fruit",
+   "onNasaMenu": true,
+   "description": "Peaches, dried, sulfured, uncooked",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 239,
+    "proteinG": 3.61,
+    "fatG": 0.76,
+    "carbsG": 61.33,
+    "vitaminCMg": 4.8,
+    "vitaminDUg": 0,
+    "calciumMg": 28,
+    "potassiumMg": 996
+   }
+  },
+  {
+   "fdcId": 168165,
+   "name": "Raisins",
+   "category": "fruit",
+   "onNasaMenu": true,
+   "description": "Raisins, dark, seedless (Includes foods for USDA's Food Distribution Program)",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 299,
+    "proteinG": 3.3,
+    "fatG": 0.25,
+    "carbsG": 79.32,
+    "vitaminCMg": 2.3,
+    "vitaminDUg": 0,
+    "calciumMg": 62,
+    "potassiumMg": 744
+   }
+  },
+  {
+   "fdcId": 171695,
+   "name": "Applesauce",
+   "category": "fruit",
+   "onNasaMenu": true,
+   "description": "Applesauce, canned, unsweetened, without added ascorbic acid (Includes foods for USDA's Food Distribution Program)",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 42,
+    "proteinG": 0.17,
+    "fatG": 0.1,
+    "carbsG": 11.27,
+    "vitaminCMg": 1,
+    "vitaminDUg": 0,
+    "calciumMg": 4,
+    "potassiumMg": 74
+   }
+  },
+  {
+   "fdcId": 170445,
+   "name": "Mashed potatoes",
+   "category": "side",
+   "onNasaMenu": true,
+   "description": "Potatoes, mashed, dehydrated, flakes without milk, dry form",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 354,
+    "proteinG": 8.34,
+    "fatG": 0.41,
+    "carbsG": 81.17,
+    "vitaminCMg": 81,
+    "vitaminDUg": 0,
+    "calciumMg": 27,
+    "potassiumMg": 1098
+   }
+  },
+  {
+   "fdcId": 168878,
+   "name": "Rice",
+   "category": "side",
+   "onNasaMenu": true,
+   "description": "Rice, white, long-grain, regular, enriched, cooked",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 130,
+    "proteinG": 2.69,
+    "fatG": 0.28,
+    "carbsG": 28.17,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 10,
+    "potassiumMg": 35
+   }
+  },
+  {
+   "fdcId": 169143,
+   "name": "Green beans",
+   "category": "vegetable",
+   "onNasaMenu": true,
+   "description": "Beans, snap, green, canned, regular pack, drained solids",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 21,
+    "proteinG": 1.05,
+    "fatG": 0.41,
+    "carbsG": 4.19,
+    "vitaminCMg": 2.8,
+    "vitaminDUg": 0,
+    "calciumMg": 37,
+    "potassiumMg": 96
+   }
+  },
+  {
+   "fdcId": 169286,
+   "name": "Spinach",
+   "category": "vegetable",
+   "onNasaMenu": true,
+   "description": "Spinach, canned, regular pack, drained solids",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 23,
+    "proteinG": 2.81,
+    "fatG": 0.5,
+    "carbsG": 3.4,
+    "vitaminCMg": 14.3,
+    "vitaminDUg": 0,
+    "calciumMg": 127,
+    "potassiumMg": 346
+   }
+  },
+  {
+   "fdcId": 169969,
+   "name": "Broccoli",
+   "category": "vegetable",
+   "onNasaMenu": true,
+   "description": "Broccoli, frozen, chopped, cooked, boiled, drained, without salt",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 28,
+    "proteinG": 3.1,
+    "fatG": 0.12,
+    "carbsG": 5.35,
+    "vitaminCMg": 40.1,
+    "vitaminDUg": 0,
+    "calciumMg": 33,
+    "potassiumMg": 142
+   }
+  },
+  {
+   "fdcId": 173235,
+   "name": "Orange drink",
+   "category": "beverage",
+   "onNasaMenu": true,
+   "description": "Beverages, orange-flavor drink, breakfast type, powder",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 386,
+    "proteinG": 0,
+    "fatG": 0,
+    "carbsG": 98.94,
+    "vitaminCMg": 230.8,
+    "vitaminDUg": 0,
+    "calciumMg": 385,
+    "potassiumMg": 190
+   }
+  },
+  {
+   "fdcId": 171893,
+   "name": "Coffee",
+   "category": "beverage",
+   "onNasaMenu": true,
+   "description": "Beverages, coffee, instant, regular, powder",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 353,
+    "proteinG": 12.2,
+    "fatG": 0.5,
+    "carbsG": 75.4,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 141,
+    "potassiumMg": 3535
+   }
+  },
+  {
+   "fdcId": 174967,
+   "name": "Shortbread cookies",
+   "category": "dessert",
+   "onNasaMenu": false,
+   "description": "Cookies, shortbread, commercially prepared, plain",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 514,
+    "proteinG": 5.37,
+    "fatG": 26.22,
+    "carbsG": 63.78,
+    "vitaminCMg": 0,
+    "vitaminDUg": 0,
+    "calciumMg": 13,
+    "potassiumMg": 88
+   }
+  },
+  {
+   "fdcId": 168778,
+   "name": "Chocolate pudding",
+   "category": "dessert",
+   "onNasaMenu": false,
+   "description": "Puddings, chocolate, ready-to-eat",
+   "dataType": "SR Legacy",
+   "per100g": {
+    "energyKcal": 142,
+    "proteinG": 2.09,
+    "fatG": 4.6,
+    "carbsG": 23.01,
+    "vitaminCMg": 0.3,
+    "vitaminDUg": 0,
+    "calciumMg": 51,
+    "potassiumMg": 184
+   }
+  }
+ ]
+}
