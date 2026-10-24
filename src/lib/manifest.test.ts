@@ -143,50 +143,43 @@ describe('defaultLaunchDates', () => {
 })
 
 describe('withDefaultFlights', () => {
-  it('keeps cargo in order; flights beyond the last slot share its date', () => {
+  it('moves each flight to the default date nearest its landing day', () => {
+    // Lander 2 (2028-12-18) lands near day −44 too, so it joins lander 1 on the 2028 best date.
     const before = fakePlan()
     const p = withDefaultFlights(before)
-    expect(p.flights.map((f) => f.launchDate)).toEqual(['2028-12-11', '2031-01-25', '2031-01-25'])
+    expect(p.flights.map((f) => f.launchDate)).toEqual(['2028-12-11', '2028-12-11', '2031-01-25'])
     expect(p.flights.map((f) => f.consumablesKg)).toEqual(
       before.flights.map((f) => f.consumablesKg),
     )
     expect(before.flights[1].launchDate).toBe('2028-12-18') // input not mutated
   })
 
-  it('adds empty resupplies for new slots', () => {
-    const p = withDefaultFlights({
-      ...fakePlan(),
-      durationDays: 1700,
-      flights: [fakePlan().flights[0]],
-    })
+  it('gives a plan with no flights one empty flight per default date', () => {
+    const p = withDefaultFlights({ ...fakePlan(), durationDays: 1700, flights: [] })
     expect(p.flights.map((f) => [f.id, f.label, f.launchDate])).toEqual([
-      ['f1', 'Cargo lander 1', '2028-12-11'],
+      ['f1', 'Initial landing', '2028-12-11'],
       ['f2', 'Resupply 1', '2031-01-25'],
       ['f3', 'Resupply 2', '2033-04-28'],
     ])
-    expect(flightMassKg(p.flights[2])).toBe(0)
+    expect(p.flights.every((f) => flightMassKg(f) === 0)).toBe(true)
   })
 })
 
 describe('withDestination', () => {
-  it('switches the vehicle payload and re-snaps flights to the Moon cadence', () => {
+  it('Mars → Moon: landers land on day 0, the day-811 resupply on the day-720 slot', () => {
     const p = withDestination(fakePlan(), 'moon')
     expect(p.baseVehiclePayloadKg).toBe(MOON_BASE_PAYLOAD_KG)
-    // 900 days: landings on days 0, 180, 360, 540, 720.
-    expect(p.flights.map((f) => f.launchDate)).toEqual([
-      '2029-08-29',
-      '2030-02-25',
-      '2030-08-24',
-      '2031-02-20',
-      '2031-08-19',
-    ])
+    expect(p.flights.map((f) => f.launchDate)).toEqual(['2029-08-29', '2029-08-29', '2031-08-19'])
     expect(overCapacityFlights(p)).toEqual([])
   })
 
-  it('switches back to Mars window dates and payload', () => {
+  it('Moon → Mars round trip keeps landers in the 2028 window and the resupply in 2031', () => {
     const p = withDestination(withDestination(fakePlan(), 'moon'), 'mars')
     expect(p.baseVehiclePayloadKg).toBe(MARS_BASE_PAYLOAD_KG)
-    expect(p.flights.every((f) => ['2028-12-11', '2031-01-25'].includes(f.launchDate))).toBe(true)
+    expect(p.flights.map((f) => f.launchDate)).toEqual(['2028-12-11', '2028-12-11', '2031-01-25'])
+    expect(p.flights.map((f) => f.consumablesKg)).toEqual(
+      fakePlan().flights.map((f) => f.consumablesKg),
+    )
   })
 })
 

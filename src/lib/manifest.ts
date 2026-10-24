@@ -129,23 +129,35 @@ function nextResupplyLabel(flights: readonly CargoFlight[]): string {
 }
 
 /**
- * Snaps flights onto the default dates, keeping each flight's cargo in order. Missing slots get an
- * empty resupply; flights beyond the last slot share its date (a second launch in that window).
+ * Moves each flight to the default date whose landing day is closest to when it lands under
+ * `previous` (e.g. the plan before a destination switch), so landers stay landers and resupplies
+ * stay resupplies. A plan with no flights gets one empty flight per default date.
  */
-export function withDefaultFlights(plan: MissionPlan): MissionPlan {
+export function withDefaultFlights(plan: MissionPlan, previous: MissionPlan = plan): MissionPlan {
   const dates = defaultLaunchDates(plan)
-  const flights: CargoFlight[] = []
-  for (let i = 0; i < Math.max(dates.length, plan.flights.length); i++) {
-    const launchDate = dates[Math.min(i, dates.length - 1)]
-    const existing = plan.flights[i]
-    const all = [...plan.flights, ...flights]
-    flights.push(
-      existing
-        ? { ...existing, launchDate }
-        : emptyFlight(nextFlightId(all), nextResupplyLabel(all), launchDate),
-    )
+  if (plan.flights.length === 0) {
+    const flights: CargoFlight[] = []
+    for (const date of dates) {
+      const label = flights.length === 0 ? 'Initial landing' : nextResupplyLabel(flights)
+      flights.push(emptyFlight(nextFlightId(flights), label, date))
+    }
+    return { ...plan, flights }
   }
-  return { ...plan, flights }
+  const slotDays = dates.map((d) => arrivalDayFor(plan, d))
+  const nearest = (day: number) =>
+    dates[
+      slotDays.reduce(
+        (best, d, i) => (Math.abs(d - day) < Math.abs(slotDays[best] - day) ? i : best),
+        0,
+      )
+    ]
+  return {
+    ...plan,
+    flights: plan.flights.map((f) => ({
+      ...f,
+      launchDate: nearest(arrivalDayFor(previous, f.launchDate)),
+    })),
+  }
 }
 
 /**

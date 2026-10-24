@@ -108,10 +108,10 @@ export function withCrewSize(plan: MissionPlan, size: number): MissionPlan {
   return { ...plan, crew: [...kept, ...added] }
 }
 
-/** Switches destination: its vehicle payload, and flights re-snapped to its default launch dates. */
+/** Switches destination: its vehicle payload, and each flight moved to the default date nearest its landing. */
 export function withDestination(plan: MissionPlan, destination: Destination): MissionPlan {
   const { baseVehiclePayloadKg } = DESTINATION_PROFILES[destination]
-  return withDefaultFlights({ ...plan, destination, baseVehiclePayloadKg })
+  return withDefaultFlights({ ...plan, destination, baseVehiclePayloadKg }, plan)
 }
 
 /**
