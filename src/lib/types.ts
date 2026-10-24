@@ -93,6 +93,8 @@ export type MissionPlan = {
 export type RunOptions = {
   runs: number
   seed: number
+  /** Override component reliability (tests, what-ifs). Defaults to COMPONENTS in data.ts. */
+  components?: Record<ComponentKey, ComponentSpec>
 }
 
 // ---------- Destination (GEA-12) ----------
