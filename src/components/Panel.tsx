@@ -6,10 +6,11 @@ type Props = {
   className?: string
 }
 
+/** A titled section separated from its neighbours by a hairline rule (no box). */
 export function Panel({ title, children, className }: Props) {
   return (
-    <section className={className ? `panel ${className}` : 'panel'} aria-label={title}>
-      <h2 className="panel-title">{title}</h2>
+    <section className={className ? `section ${className}` : 'section'} aria-label={title}>
+      <h2 className="section-title">{title}</h2>
       {children}
     </section>
   )

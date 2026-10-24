@@ -4,19 +4,17 @@ type Props = {
   label: string
   value: string
   unit?: string
-  tone?: Tone
-  hero?: boolean
 }
 
-export function StatTile({ label, value, unit, tone, hero }: Props) {
-  const classes = ['stat-tile', tone && `is-${tone}`, hero && 'is-hero'].filter(Boolean).join(' ')
+/** One cell in a `.stat-row`: small caps label over a mono value. */
+export function StatTile({ label, value, unit }: Props) {
   return (
-    <div className={classes}>
+    <div className="stat-cell">
+      <span className="stat-label">{label}</span>
       <span className="stat-value">
         {value}
         {unit && <span className="stat-unit">{unit}</span>}
       </span>
-      <span className="stat-label">{label}</span>
     </div>
   )
 }

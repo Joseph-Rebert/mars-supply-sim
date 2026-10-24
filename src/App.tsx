@@ -1,13 +1,20 @@
 import { useMemo, useState } from 'react'
 import { EChart, type EChartOption } from './components/EChart'
 import { Panel } from './components/Panel'
+import { Readout } from './components/Readout'
 import { StatTile, type Tone } from './components/StatTile'
 import { cssVar, RESOURCE_LABELS, resourceColors } from './components/themeColors'
-import { fakeResult } from './lib/fake'
+import { fakePlan, fakeResult } from './lib/fake'
 import { CONSUMABLE_KEYS, type SimResult } from './lib/types'
 
-// Shell with placeholder content from fakeResult(). The setup form (GEA-15) and the real results
-// view (GEA-27) replace the panel contents; the layout and styles stay.
+// Shell with placeholder content from fakePlan()/fakeResult(). The setup form (GEA-15), manifest
+// (GEA-16) and real results view (GEA-27) replace the section contents; layout and styles stay.
+
+const TONE_LABEL: Record<Tone, string> = {
+  nominal: '● Nominal',
+  caution: '▲ Caution',
+  critical: '▼ Critical',
+}
 
 function survivalTone(rate: number): Tone {
   if (rate >= 0.9) return 'nominal'
@@ -15,29 +22,49 @@ function survivalTone(rate: number): Tone {
   return 'critical'
 }
 
+/** Console-style thousands separator: 10 550. */
+function fmt(n: number): string {
+  return Math.round(n)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
 function timelineOption(result: SimResult): EChartOption {
   const colors = resourceColors()
   const axis = cssVar('--chart-axis')
   const grid = cssVar('--chart-grid')
+  const mono = cssVar('--mono')
   const days = Array.from({ length: result.durationDays }, (_, i) => i)
 
   return {
     backgroundColor: 'transparent',
-    textStyle: { color: axis, fontFamily: cssVar('--mono'), fontSize: 14 },
-    grid: { left: 64, right: 16, top: 24, bottom: 40 },
-    tooltip: { trigger: 'axis', valueFormatter: (v: unknown) => `${Math.round(Number(v))} kg` },
+    animation: false,
+    textStyle: { color: axis, fontFamily: mono, fontSize: 13 },
+    grid: { left: 56, right: 24, top: 16, bottom: 32 },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: cssVar('--bg-raised'),
+      borderColor: cssVar('--rule-strong'),
+      borderRadius: 0,
+      textStyle: { color: cssVar('--text'), fontFamily: mono },
+      valueFormatter: (v: unknown) => `${fmt(Number(v))} kg`,
+    },
     xAxis: {
       type: 'category',
       data: days,
-      name: 'day',
       boundaryGap: false,
-      axisLine: { lineStyle: { color: grid } },
+      axisLine: { lineStyle: { color: cssVar('--rule-strong') } },
+      axisTick: { show: false },
+      axisLabel: { interval: 149, formatter: (d: string) => `D${d}` },
     },
-    yAxis: { type: 'value', name: 'kg', splitLine: { lineStyle: { color: grid } } },
+    yAxis: {
+      type: 'value',
+      axisLabel: { formatter: (v: number) => fmt(v) },
+      splitLine: { lineStyle: { color: grid, type: 'dashed' } },
+    },
     series: CONSUMABLE_KEYS.flatMap((key) => {
       const { p10, p50, p90 } = result.bands[key]
       const color = colors[key]
-      const name = RESOURCE_LABELS[key]
       // P10–P90 band: invisible lower bound, then the band height stacked on top.
       return [
         {
@@ -54,32 +81,37 @@ function timelineOption(result: SimResult): EChartOption {
           stack: key,
           symbol: 'none',
           lineStyle: { opacity: 0 },
-          areaStyle: { color, opacity: 0.18 },
+          areaStyle: { color, opacity: 0.14 },
           silent: true,
         },
-        { type: 'line', name, data: p50, symbol: 'none', lineStyle: { color, width: 2 } },
+        {
+          type: 'line',
+          name: RESOURCE_LABELS[key],
+          data: p50,
+          symbol: 'none',
+          lineStyle: { color, width: 1.5 },
+        },
       ]
     }),
   }
 }
 
 function App() {
-  const result = useMemo(() => fakeResult(), [])
+  const plan = useMemo(() => fakePlan(), [])
+  const result = useMemo(() => fakeResult(plan), [plan])
   const option = useMemo(() => timelineOption(result), [result])
-  const [crew, setCrew] = useState(4)
+  const [crew, setCrew] = useState(plan.crew.length)
 
-  const pct = Math.round(result.survivalRate * 100)
+  const tone = survivalTone(result.survivalRate)
 
   return (
     <div className="app">
       <header className="app-header">
-        <h1 className="app-title">
-          ARES <span className="app-title-accent">SUPPLY</span>
-        </h1>
-        <p className="app-tagline">Will this crew survive, and what should we change so they do?</p>
+        <h1 className="app-title">Ares Supply</h1>
+        <p className="app-subtitle">─ Mission survival planner</p>
         <div className="app-status">
           <span className="status-dot" aria-hidden="true" />
-          <span className="app-status-text">PREVIEW · PLACEHOLDER DATA</span>
+          <span className="app-status-text">Preview · placeholder data</span>
         </div>
       </header>
 
@@ -89,9 +121,9 @@ function App() {
             <div className="field">
               <div className="field-row">
                 <label className="field-label" htmlFor="crew">
-                  Crew size
+                  Crew
                 </label>
-                <span className="field-value">{crew} people</span>
+                <span className="field-value">{String(crew).padStart(2, '0')}</span>
               </div>
               <input
                 id="crew"
@@ -103,35 +135,47 @@ function App() {
                 onChange={(e) => setCrew(Number(e.target.value))}
               />
             </div>
-            <p className="muted">Full setup form arrives with GEA-15.</p>
+            <div className="readouts">
+              <Readout label="Duration" value={`${plan.durationDays} d`} />
+              <Readout label="Destination" value={plan.destination} />
+              <Readout
+                label="Recovery"
+                value={`${Math.round(plan.lifeSupport.waterRecoveryRate * 100)} %`}
+              />
+              <Readout label="O₂ source" value={plan.lifeSupport.o2Source} />
+            </div>
+            <p className="note">Full setup form arrives with GEA-15.</p>
             <button className="btn btn-primary btn-block" type="button" disabled>
-              Run mission
+              Execute run
             </button>
           </Panel>
           <Panel title="Cargo manifest">
-            <p className="muted">Launch windows and mass budget arrive with GEA-16.</p>
+            <div className="readouts">
+              {plan.flights.map((f) => (
+                <Readout key={f.id} label={f.label} value={f.launchDate} />
+              ))}
+            </div>
+            <p className="note">Launch windows and mass budget arrive with GEA-16.</p>
           </Panel>
         </div>
 
         <div className="column">
-          <div className="stat-row">
-            <StatTile
-              hero
-              label="chance the crew survives"
-              value={`${pct}`}
-              unit="%"
-              tone={survivalTone(result.survivalRate)}
-            />
-          </div>
-          <div className="stat-row">
-            <StatTile
-              label="total launch mass"
-              value={Math.round(result.totalLaunchMassKg).toLocaleString('en-US')}
-              unit="kg"
-            />
-            <StatTile label="mission length" value={`${result.durationDays}`} unit="days" />
-            <StatTile label="simulated runs" value={result.runs.toLocaleString('en-US')} />
-          </div>
+          <Panel title="Probability of crew survival">
+            <div className="verdict">
+              <div className="verdict-row">
+                <span className={`verdict-value is-${tone}`}>
+                  {(result.survivalRate * 100).toFixed(1)}
+                  <span className="verdict-unit">%</span>
+                </span>
+                <span className={`status-tag is-${tone}`}>{TONE_LABEL[tone]}</span>
+              </div>
+            </div>
+            <div className="stat-row">
+              <StatTile label="Launch mass" value={fmt(result.totalLaunchMassKg)} unit="kg" />
+              <StatTile label="Duration" value={`${result.durationDays}`} unit="d" />
+              <StatTile label="Runs" value={fmt(result.runs)} />
+            </div>
+          </Panel>
           <Panel title="Resource timeline · P10–P90">
             <div className="legend">
               {CONSUMABLE_KEYS.map((key) => (
@@ -141,7 +185,7 @@ function App() {
                 </span>
               ))}
             </div>
-            <EChart option={option} height={260} />
+            <EChart option={option} height={250} />
           </Panel>
         </div>
       </main>
