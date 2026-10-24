@@ -1,8 +1,9 @@
 // Pure simulation: MissionPlan in, SimResult out. No DOM, no React — runs in Node and Vitest.
-// TODO(GEA-18): component failures (MTBF + spares)
 // TODO(GEA-22): Monte Carlo runner (runMission)
 
 import {
+  CO2_SCRUBBER_GRACE_DAYS,
+  COMPONENTS,
   CREW_NEEDS_KG_PER_CREW_DAY,
   DESTINATION_PROFILES,
   ELECTROLYSIS_WATER_KG_PER_KG_O2,
@@ -13,6 +14,7 @@ import type { Rng } from './rng'
 import {
   COMPONENT_KEYS,
   type CargoFlight,
+  type ComponentEvent,
   type ComponentKey,
   type ConsumableKey,
   type FailureCause,
@@ -69,31 +71,71 @@ export function arrivalDay(plan: MissionPlan, flight: CargoFlight): number | nul
   return daysBetween(plan.startDate, flight.launchDate) <= 0 ? 0 : null
 }
 
-type Delivery = { day: number; kg: Record<ConsumableKey, number>; spares: number }
+type Delivery = {
+  day: number
+  kg: Record<ConsumableKey, number>
+  spares: Record<ComponentKey, number>
+}
 
 function deliveries(plan: MissionPlan): Delivery[] {
   const out: Delivery[] = []
   for (const flight of plan.flights) {
     const day = arrivalDay(plan, flight)
     if (day === null || day >= plan.durationDays) continue
-    const spares = COMPONENT_KEYS.reduce((sum, c) => sum + flight.spares[c], 0)
-    out.push({ day: Math.max(0, day), kg: flight.consumablesKg, spares })
+    out.push({ day: Math.max(0, day), kg: flight.consumablesKg, spares: flight.spares })
   }
   return out
 }
 
-/** One simulated mission, stepped day by day. Deterministic for a given plan and rng seed. */
-export function runOnce(plan: MissionPlan, _rng: Rng): RunResult {
+/** The component whose output keeps each stock topped up. */
+const SUPPLIED_BY: Record<ConsumableKey, ComponentKey> = {
+  o2: 'o2Generator',
+  water: 'waterRecycler',
+  food: 'greenhouse',
+}
+
+/** Hardware the plan actually carries: no O₂ generator on tanks, no greenhouse when it's off. */
+export function installedComponents(plan: MissionPlan): Record<ComponentKey, boolean> {
+  return {
+    waterRecycler: true,
+    o2Generator: plan.lifeSupport.o2Source !== 'tanks',
+    co2Scrubber: true,
+    greenhouse: plan.lifeSupport.greenhouse.enabled,
+  }
+}
+
+// Never equal to a day index, so 'repair finishes today' can't match an online component.
+const ONLINE = -1
+const AWAITING_SPARE = Infinity
+
+/**
+ * One simulated mission, stepped day by day. Deterministic for a given plan and rng seed.
+ * Each day: cargo lands → repairs finish → installed, online components fail with p = 1 / MTBF
+ * (a spare starts a repair; none leaves it down until one arrives) → consume / recycle / produce.
+ */
+export function runOnce(plan: MissionPlan, rng: Rng): RunResult {
   const days = plan.durationDays
   const rates = dailyRates(plan)
   const arrivals = deliveries(plan)
-  // GEA-18 takes components offline; until then everything stays online.
-  const online: Record<ComponentKey, boolean> = {
-    waterRecycler: true,
-    o2Generator: true,
-    co2Scrubber: true,
-    greenhouse: true,
+  const installed = installedComponents(plan)
+  const failProbability = {} as Record<ComponentKey, number>
+  for (const c of COMPONENT_KEYS) failProbability[c] = 1 / COMPONENTS[c].mtbfDays
+
+  // Day a component comes back: ONLINE, a repair-finish day, or AWAITING_SPARE.
+  const downUntil: Record<ComponentKey, number> = {
+    waterRecycler: ONLINE,
+    o2Generator: ONLINE,
+    co2Scrubber: ONLINE,
+    greenhouse: ONLINE,
   }
+  const spareStock: Record<ComponentKey, number> = {
+    waterRecycler: 0,
+    o2Generator: 0,
+    co2Scrubber: 0,
+    greenhouse: 0,
+  }
+  const online = (c: ComponentKey) => installed[c] && downUntil[c] === ONLINE
+  const events: ComponentEvent[] = []
 
   const stocks: Record<ResourceKey, number[]> = {
     o2: new Array<number>(days),
@@ -104,7 +146,7 @@ export function runOnce(plan: MissionPlan, _rng: Rng): RunResult {
   let o2 = 0
   let water = 0
   let food = 0
-  let spares = 0
+  let co2DownDays = 0
   let failure: FailureCause | undefined
 
   for (let day = 0; day < days; day++) {
@@ -114,25 +156,54 @@ export function runOnce(plan: MissionPlan, _rng: Rng): RunResult {
         o2 += a.kg.o2
         water += a.kg.water
         food += a.kg.food
-        spares += a.spares
+        for (const c of COMPONENT_KEYS) spareStock[c] += a.spares[c]
+      }
+
+      for (const c of COMPONENT_KEYS) {
+        if (!installed[c]) continue
+        if (downUntil[c] === day) {
+          downUntil[c] = ONLINE
+          events.push({ day, component: c, type: 'repaired' })
+        }
+        if (downUntil[c] === AWAITING_SPARE) {
+          if (spareStock[c] > 0) {
+            spareStock[c]--
+            downUntil[c] = day + COMPONENTS[c].repairDays
+          }
+        } else if (downUntil[c] === ONLINE && rng() < failProbability[c]) {
+          const spareUsed = spareStock[c] > 0
+          if (spareUsed) spareStock[c]--
+          downUntil[c] = spareUsed ? day + COMPONENTS[c].repairDays : AWAITING_SPARE
+          events.push({ day, component: c, type: 'failed', spareUsed })
+        }
       }
 
       o2 -= rates.consumeKg.o2
       water -= rates.consumeKg.water
       food -= rates.consumeKg.food
 
-      if (online.waterRecycler) water += rates.waterRecoveredKg
-      if (online.o2Generator) {
+      if (online('waterRecycler')) water += rates.waterRecoveredKg
+      if (online('o2Generator')) {
         o2 += rates.o2ProducedKg
         water -= rates.o2WaterCostKg
       }
-      if (online.greenhouse) food += rates.greenhouseFoodKg
+      if (online('greenhouse')) food += rates.greenhouseFoodKg
+      co2DownDays = online('co2Scrubber') ? 0 : co2DownDays + 1
 
       // O₂ first: if several run out the same day, suffocation is what ends the mission.
       const empty: ConsumableKey | undefined =
         o2 < 0 ? 'o2' : water < 0 ? 'water' : food < 0 ? 'food' : undefined
       if (empty) {
+        const supplier = SUPPLIED_BY[empty]
         failure = { kind: 'stockout', resource: empty, day }
+        if (installed[supplier] && !online(supplier)) {
+          failure.offlineComponent = supplier
+          failure.awaitingSpare = downUntil[supplier] === AWAITING_SPARE
+        }
+      } else if (co2DownDays > CO2_SCRUBBER_GRACE_DAYS) {
+        failure = { kind: 'systemDown', component: 'co2Scrubber', day }
+      }
+      if (failure) {
         o2 = Math.max(0, o2)
         water = Math.max(0, water)
         food = Math.max(0, food)
@@ -142,8 +213,12 @@ export function runOnce(plan: MissionPlan, _rng: Rng): RunResult {
     stocks.o2[day] = o2
     stocks.water[day] = water
     stocks.food[day] = food
-    stocks.spares[day] = spares
+    stocks.spares[day] =
+      spareStock.waterRecycler +
+      spareStock.o2Generator +
+      spareStock.co2Scrubber +
+      spareStock.greenhouse
   }
 
-  return { survived: !failure, failure, stocks, componentEvents: [] }
+  return { survived: !failure, failure, stocks, componentEvents: events }
 }

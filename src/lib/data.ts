@@ -191,6 +191,10 @@ export const COMPONENTS: Record<ComponentKey, ComponentSpec> = {
   greenhouse: GREENHOUSE,
 }
 
+// ASSUMPTION: 3 days. With the CO₂ scrubber down, cabin CO₂ climbs within hours; we assume emergency
+// lithium-hydroxide canisters (as carried on Apollo and the ISS) hold it safe for ~3 days. No sourced capacity yet.
+export const CO2_SCRUBBER_GRACE_DAYS = 3
+
 // ---------- Shipping overhead (container mass per kg of cargo) ----------
 
 // Source: BVAD Rev2 p.59, 0.43 kg packaging per 1.96 kg food.

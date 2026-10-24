@@ -158,8 +158,16 @@ export type FailureCause =
       kind: 'stockout'
       resource: ConsumableKey
       day: number
-      /** Component that was offline with no spares when the stock ran out, if any. */
+      /** Component that supplies this resource and was offline when the stock ran out, if any. */
       offlineComponent?: ComponentKey
+      /** True when that component was waiting for a spare (none in stock), not just mid-repair. */
+      awaitingSpare?: boolean
+    }
+  | {
+      /** A component with no stock to drain (the CO₂ scrubber) stayed down past its grace period. */
+      kind: 'systemDown'
+      component: ComponentKey
+      day: number
     }
   | {
       kind: 'crewUnfit'
