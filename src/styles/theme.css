@@ -995,3 +995,49 @@ p {
   margin-left: auto;
   padding: 8px 16px;
 }
+
+/* ---------- Demo scenario presets (GEA-35) ---------- */
+
+.preset-picker {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-label);
+  min-width: 0;
+}
+
+.preset-label {
+  color: var(--text-muted);
+}
+
+.preset-select {
+  font: var(--fs-label) / 1 var(--mono);
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--bg);
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+  padding: 6px 8px;
+  min-width: 0;
+  max-width: 280px;
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.preset-select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The preset picker takes the auto margin, so the status sits right after it. */
+.preset-picker + .app-status {
+  margin-left: 0;
+}
+
+@media (max-width: 520px) {
+  .preset-label {
+    display: none;
+  }
+}
