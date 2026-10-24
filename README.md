@@ -6,6 +6,8 @@ A mission-planning tool that treats off-Earth life support as a supply chain. Se
 
 Built for Geaux Hack. Tickets live in Linear (team **GEA**).
 
+**Live:** https://mars-supply-sim.vercel.app/
+
 ## Stack
 
 - **Vite + React 19 + TypeScript**
