@@ -53,6 +53,8 @@ Only the fetch scripts in `scripts/` use API keys; the app itself never calls an
 
 ## Team workflow
 
+Full workflow and rules (also read by Claude Code): see [CLAUDE.md](CLAUDE.md).
+
 - Branch per ticket: use Linear's branch name (e.g. `josephrebert05/gea-14-daily-resource-model`)
 - Open a PR into `main`. Vercel posts a preview URL on every PR
 - Merging to `main` deploys to production
