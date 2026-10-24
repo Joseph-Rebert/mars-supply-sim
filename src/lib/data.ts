@@ -215,6 +215,58 @@ export const O2_SOURCE_READINESS: Record<O2Source, ReadinessTier> = {
 // Source: KRUSTY ground test, March 2018 (Gibson et al., NTRS 20180005435); never flown.
 export const KILOPOWER_READINESS: ReadinessTier = 'demonstrated'
 
+// ---------- Launch & transfer (GEA-39) ----------
+
+// Source: JPL Solar System Dynamics, Astrodynamic Parameters, GM of the Sun 1.32712440041e11 km³/s² (DE440),
+// https://ssd.jpl.nasa.gov/astro_par.html
+export const MU_SUN_KM3_PER_S2 = 1.32712440041e11
+
+// Source: NASA Launch Services Program, Launch Vehicle Performance Planning Assessment, Falcon Heavy
+// (Expendable), KSC, High Energy, 2020-03-28 (elvperf.ksc.nasa.gov). Table 1 gives 14,935 kg at C3 0.264;
+// the other points are read off Figure 1 (±~150 kg). Cross-checks: 10,000 kg @ C3 20.6, 6,000 @ 44.5, 4,000 @ 61.0.
+// Pairs are [C3 km²/s², separated spacecraft mass kg], ascending C3.
+export const FALCON_HEAVY_EXPENDABLE_PAYLOAD_KG_BY_C3: readonly (readonly [number, number])[] = [
+  [-2, 15500],
+  [0.264, 14935],
+  [5, 13600],
+  [10, 12350],
+  [15, 11150],
+  [20, 10100],
+  [25, 9100],
+  [30, 8200],
+  [35, 7400],
+  [40, 6650],
+  [45, 5900],
+  [50, 5250],
+  [60, 4100],
+  [70, 3050],
+  [80, 2200],
+  [90, 1400],
+  [100, 750],
+]
+
+// ASSUMPTION: Mars arrival v∞ ≤ 7 km/s. Upper end of entry speeds an aerocapture/EDL system is designed for;
+// faster transfers are discarded even if their C3 is lower.
+export const MARS_ARRIVAL_VINF_CAP_KM_S = 7
+
+// ASSUMPTION: a launch window is any run of dates with payload factor ≥ 0.8 (tunable, per GEA-39).
+export const LAUNCH_WINDOW_PAYLOAD_FACTOR_MIN = 0.8
+
+// Source: NASA Moon Fact Sheet, semimajor axis 384,400 km, https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html
+export const EARTH_MOON_DISTANCE_KM = 384_400
+
+// Source: NASA Apollo 11 mission overview: launch July 16, lunar orbit insertion July 19, 1969 (~3 days),
+// https://www.nasa.gov/mission/apollo-11/
+export const MOON_TRANSIT_DAYS = 3
+
+// ASSUMPTION: −2 km²/s², typical C3 of a direct trans-lunar injection (Earth escape is C3 = 0; the Moon is
+// just short of it). Only shown for display; Moon payload factor is fixed at 1.
+export const MOON_TRANSFER_C3_KM2_S2 = -2
+
+// ASSUMPTION: 0.9 km/s arrival speed relative to the Moon, approximated by Apollo 11's lunar orbit insertion
+// burn (LOI-1 Δv ≈ 889 m/s, Apollo 11 Mission Report, NASA MSC-00171). Display only.
+export const MOON_ARRIVAL_VINF_KM_S = 0.9
+
 // ---------- Sources list (for the pitch deck and an in-app credits panel) ----------
 
 // Source: this file's citations, collected.
@@ -278,6 +330,18 @@ export const SOURCES: readonly { title: string; url: string }[] = [
   {
     title: 'Jones, ISS ECLSS ORU reliability, ICES-2019-11',
     url: 'https://ntrs.nasa.gov/api/citations/20190028339/downloads/20190028339.pdf',
+  },
+  {
+    title: 'NASA/JPL Horizons System (Earth & Mars ephemerides)',
+    url: 'https://ssd.jpl.nasa.gov/horizons/',
+  },
+  {
+    title: 'JPL Astrodynamic Parameters (GM of the Sun)',
+    url: 'https://ssd.jpl.nasa.gov/astro_par.html',
+  },
+  {
+    title: 'NASA LSP, Falcon Heavy Performance Planning Assessment (2020)',
+    url: 'https://elvperf.ksc.nasa.gov',
   },
   {
     title: 'Owens & de Weck, ISS operational experience, ICES-2018-198',

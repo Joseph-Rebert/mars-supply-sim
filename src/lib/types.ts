@@ -103,6 +103,8 @@ export type Transfer = {
   arrivalDate: IsoDate
   /** Launch energy, km²/s². */
   c3: number
+  /** Hyperbolic excess speed at arrival, km/s (what aerocapture/EDL must absorb). */
+  vInfArrival: number
   /** Share of baseVehiclePayloadKg deliverable when launching on this date, 0–1. */
   payloadFactor: number
   distanceKmAtLaunch: number
