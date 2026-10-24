@@ -96,6 +96,30 @@ export const CREW_ENERGY_MJ_RANGE = { min: 8.37, max: 18 }
 // Source: thermochemical calorie, 4.184 kJ/kcal (NIST SP 811).
 export const KJ_PER_KCAL = 4.184
 
+// ---------- Stored-food nutrient loss (first-order decay, per day of shelf age) ----------
+
+// Source: Cooper, Perchonok & Douglas, "Initial assessment of the nutritional quality of the space food system
+// over three years of ambient storage", npj Microgravity 3:17 (2017), Fig. 2: "The vitamin C content in most
+// fruit products degraded between 32 and 83% after 3 years of storage" (21 °C, ISS temperature),
+// https://pmc.ncbi.nlm.nih.gov/articles/PMC5466603/
+// ASSUMPTION: first-order decay fitted to the midpoint (57.5% lost → 42.5% left after 1,095 days):
+// k = −ln(0.425) / 1095 ≈ 7.8e-4 per day (≈ 25% per year). Range below spans the 32–83% losses.
+export const VITAMIN_C_DECAY_PER_DAY = -Math.log(0.425) / 1095
+
+// Source: same Cooper et al. (2017) range: 68% left (k ≈ 3.5e-4/day) to 17% left (k ≈ 1.6e-3/day) after 3 years.
+export const VITAMIN_C_DECAY_PER_DAY_RANGE = {
+  min: -Math.log(0.68) / 1095,
+  max: -Math.log(0.17) / 1095,
+}
+
+// ASSUMPTION: 0. No stored-food vitamin D loss rate was found; Cooper et al. (2017) report food vitamin D is
+// already below needs after processing and that ISS crews take a vitamin D supplement.
+export const VITAMIN_D_DECAY_PER_DAY = 0
+
+// ASSUMPTION: 0. Calcium and potassium are elements and cannot degrade chemically; Cooper et al. (2017) list only
+// "vitamins A, C, B1, and B6" as decreasing during storage.
+export const MINERAL_DECAY_PER_DAY = 0
+
 // ---------- ISS ECLSS performance ----------
 
 // Source: NASA, "NASA Achieves Water Recovery Milestone on International Space Station" (2023-06-20),
@@ -457,6 +481,19 @@ export const SOURCES: readonly { title: string; url: string }[] = [
   {
     title: 'Briggs, Gibson & Sanzi, Kilopower, NASA/TM-2018-219702',
     url: 'https://ntrs.nasa.gov/api/citations/20180001487/downloads/20180001487.pdf',
+  },
+  {
+    title:
+      'Cooper, Perchonok & Douglas, space food nutrition over 3 years of storage, npj Microgravity (2017)',
+    url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC5466603/',
+  },
+  {
+    title: 'Lane et al., Changes in Space Food over the Last 45 Years (NASA JSC)',
+    url: 'https://ntrs.nasa.gov/api/citations/20060049069/downloads/20060049069.pdf',
+  },
+  {
+    title: 'USDA FoodData Central, SR Legacy',
+    url: 'https://fdc.nal.usda.gov/',
   },
   {
     title: 'Jones, ISS ECLSS ORU reliability, ICES-2019-11',
