@@ -221,8 +221,8 @@ About **2 hours before presenting**, `main` freezes: only demo-critical fixes, e
 
 ## Setup for new teammates
 
-1. Get added as a collaborator on `github.com/Joseph-Rebert/mars-supply-sim` and accept the invite.
-2. `gh auth login`, then `git clone https://github.com/Joseph-Rebert/mars-supply-sim.git && cd mars-supply-sim && npm install`
+1. Get added as a collaborator on `github.com/Joseph-Rebert/res-supply-chain` and accept the invite.
+2. `gh auth login`, then `git clone https://github.com/Joseph-Rebert/res-supply-chain.git && cd res-supply-chain && npm install`
 3. Connect Linear in Claude Code. Either:
    - enable the **Linear** connector in your claude.ai account settings and run `/mcp` in Claude Code to authenticate, or
    - `claude mcp add --transport http linear https://mcp.linear.app/mcp`, then `/mcp` to log in.
