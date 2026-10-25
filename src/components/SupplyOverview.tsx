@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import type { FixKind, WeakestLink } from '../lib/analysis'
+import type { WeakestLink } from '../lib/analysis'
 import {
   runsOutDay,
   type ExceptionTarget,
@@ -7,7 +7,6 @@ import {
   type SupplyException,
 } from '../lib/supplyChain'
 import type { MissionPlan, ResourceKey, SimResult } from '../lib/types'
-import { fmt, survivalTone } from './format'
 import { SupplyCharts } from './SupplyStoryChart'
 import { RESOURCE_LABELS } from './themeColors'
 import type { FixState } from './WeakestLinkCallout'
@@ -17,22 +16,6 @@ const PROBLEMS_SHOWN = 3
 const pct = (x: number) => `${Math.round(x * 100)}%`
 /** Like pct, but keeps a decimal near the top so 99.5% doesn't read as a promise of 100%. */
 const pctFine = (x: number) => (x > 0.99 && x < 1 ? `${(x * 100).toFixed(1)}%` : pct(x))
-
-const PILL = {
-  nominal: 'Safe enough',
-  caution: 'Not safe enough yet',
-  critical: 'At risk',
-} as const
-
-/** One line saying what a fix does; the full description sits behind "What changes?". */
-const FIX_GIST: Record<FixKind, string> = {
-  moveSpares: 'Send the spare parts on an earlier rocket',
-  addSpares: 'Pack more spare parts',
-  emergencyFlight: 'Book an extra rocket',
-  addConsumables: 'Send more supplies',
-  exercise: 'Have the crew exercise more',
-  supplement: 'Give the crew a daily vitamin C tablet',
-}
 
 type Props = {
   /** The plan that produced `result`. */
@@ -130,31 +113,9 @@ function storyCaption(
 
 function Verdict(props: Props) {
   const { link, fix, applying, applyBlockedReason, onApplyFix } = props
-  if (link.status === 'allClear') {
-    return (
-      <section className="sc-verdict tone-nominal" aria-label="Verdict">
-        <div className="sc-verdict-text">
-          <span className="sc-pill tone-nominal">Looks good</span>
-          <p className="sc-verdict-head">{link.sentence}</p>
-        </div>
-      </section>
-    )
-  }
-  const tone = survivalTone(link.survivalRate)
-  const { top } = link
-  const headline = top.resource
-    ? `The crew runs out of ${RESOURCE_LABELS[top.resource].toLowerCase()} around month ${top.month}`
-    : `${top.label.split(': ')[0]} around month ${top.month}`
-  const why = top.sentence.split(' because ')[1]
+  if (link.status === 'allClear') return null
   return (
-    <section className={`sc-verdict tone-${tone}`} aria-label="Verdict">
-      <div className="sc-verdict-text">
-        <span className={`sc-pill tone-${tone}`}>{PILL[tone]}</span>
-        <p className="sc-verdict-head">
-          {headline} in {Math.round(top.share * 100)} out of 100 missions
-        </p>
-        {why && <p className="sc-muted">The {why.replace(/^the /, '')}.</p>}
-      </div>
+    <section className="sc-verdict" aria-label="Best fix">
       <div className="sc-verdict-action">
         {fix === 'searching' ? (
           <p className="sc-muted">Looking for the best fix… this takes a few seconds.</p>
@@ -171,28 +132,7 @@ function Verdict(props: Props) {
                 ? 'Fixing…'
                 : `Fix it: ${pct(fix.survivalBefore)} → ${pctFine(fix.survivalAfter)} survive`}
             </button>
-            {applyBlockedReason ? (
-              <p className="sc-caption">{applyBlockedReason}</p>
-            ) : (
-              <>
-                <p className="sc-caption">
-                  {fix.steps && fix.steps.length > 1
-                    ? `${fix.steps.length} changes to the cargo, all at once.`
-                    : `${FIX_GIST[fix.kind]}.`}{' '}
-                  {fix.massDeltaKg > 0 ? `Adds ${fmt(fix.massDeltaKg)} kg.` : ''}
-                </p>
-                <details className="sc-more">
-                  <summary>What changes</summary>
-                  <ol className="sc-steps">
-                    {(fix.steps ?? [fix.description]).map((step) => (
-                      <li key={step} className="sc-caption">
-                        {step}.
-                      </li>
-                    ))}
-                  </ol>
-                </details>
-              </>
-            )}
+            {applyBlockedReason && <p className="sc-caption">{applyBlockedReason}</p>}
           </>
         ) : (
           <p className="sc-muted">{fix.sentence}</p>
