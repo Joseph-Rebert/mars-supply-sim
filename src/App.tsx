@@ -17,18 +17,9 @@ import { runBlockedReason } from './lib/launchDates'
 import { withBaseCargo } from './lib/manifest'
 import { presetById, type PresetId } from './lib/presets'
 import { DEFAULT_RUN_OPTIONS, runMission } from './lib/sim'
-import {
-  equipmentExceptions,
-  fuelExceptions,
-  orderSchedule,
-  overweightExceptions,
-  pipeline,
-  SAFETY_STOCK_DAYS_DEFAULT,
-  supplyExceptions,
-  type ExceptionTarget,
-} from './lib/supplyChain'
+import { orderSchedule, pipeline, SAFETY_STOCK_DAYS_DEFAULT } from './lib/supplyChain'
 import { launchWindows, transferFor } from './lib/transfers'
-import type { MissionPlan, ResourceKey, SimResult } from './lib/types'
+import type { MissionPlan, SimResult } from './lib/types'
 
 // One page: the verdict, the trip, and the supplies over time, then cargo, crew and setup further
 // down, with the key numbers in a strip along the bottom. A new mission comes from the wizard.
@@ -69,7 +60,6 @@ function App() {
   const [leadDays, setLeadDays] = useState(ORDER_LEAD_TIME_DAYS)
   const [safetyDays, setSafetyDays] = useState(SAFETY_STOCK_DAYS_DEFAULT)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [markedRocket, setMarkedRocket] = useState<string | null>(null)
   const blockedReason = useMemo(() => runBlockedReason(plan), [plan])
   const stale = run.plan !== plan
 
@@ -97,39 +87,17 @@ function App() {
   const fixState: FixState = fix?.for === run ? fix.state : 'searching'
 
   const supply = useMemo(() => {
-    const { plan: p, result: r, link } = run
+    const { plan: p, result: r } = run
     const rows = pipeline(p, leadDays)
     const slots = orderSchedule(p, r, leadDays, safetyDays).filter((s) => s.status !== 'afterEnd')
     return {
       rows,
       slots,
-      exceptions: supplyExceptions(link, slots, rows),
       hasWindows: launchWindows(p.destination).length > 0,
       transitDays: transferFor(p.destination, p.startDate).transitDays,
     }
   }, [run, leadDays, safetyDays])
 
-  // Overweight rockets, equipment and fuel problems come off the plan being edited: no rerun needed to
-  // see them, and an overweight plan can't be rerun until it's fixed. Worst first, then the run's own.
-  const exceptions = useMemo(() => {
-    const now = [
-      ...overweightExceptions(plan),
-      ...equipmentExceptions(plan),
-      ...fuelExceptions(plan),
-    ]
-    const rank = { critical: 0, warning: 1 }
-    return [...now, ...supply.exceptions].sort((a, b) => rank[a.severity] - rank[b.severity])
-  }, [plan, supply.exceptions])
-  const linked = supply.exceptions.find((e) => e.target.tab === 'stock')?.target
-  const linkedResource: ResourceKey = linked?.tab === 'stock' ? linked.resource : 'water'
-
-  // A problem jumps to where it shows: its rocket in the shipments list, or the supply charts.
-  const goTo = (target: ExceptionTarget) => {
-    if (target.tab === 'orders') setMarkedRocket(target.launchDate ?? null)
-    if (target.tab === 'setup') setWizardOpen(true)
-    const id = target.tab === 'orders' ? 'shipments' : target.tab === 'stock' ? 'supplies' : null
-    if (id) document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
 
   /** Runs `next` and shows it, or keeps the last run and reports why this one failed. */
@@ -153,7 +121,6 @@ function App() {
     setPlan(next)
     tryRun(next)
     setSelection(selected)
-    setMarkedRocket(null)
     setFixedFrom(null)
   }
 
@@ -257,9 +224,6 @@ function App() {
           applying={applying}
           onApplyFix={applyFix}
           rows={supply.rows}
-          exceptions={exceptions}
-          onException={goTo}
-          resource={linkedResource}
           trip={
             <section id="trip" className="sc-trip" aria-labelledby="trip-title">
               <h2 id="trip-title" className="sc-h2">
@@ -295,7 +259,7 @@ function App() {
             plan={plan}
             runSlots={supply.slots}
             leadDays={leadDays}
-            highlight={markedRocket}
+            highlight={null}
             onChange={editPlan}
           />
         </section>

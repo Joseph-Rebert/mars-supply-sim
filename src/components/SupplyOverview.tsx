@@ -1,18 +1,11 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import type { WeakestLink } from '../lib/analysis'
-import {
-  runsOutDay,
-  type ExceptionTarget,
-  type PipelineRow,
-  type SupplyException,
-} from '../lib/supplyChain'
+import type { PipelineRow } from '../lib/supplyChain'
 import type { MissionPlan, ResourceKey, SimResult } from '../lib/types'
 import { SupplyCharts } from './SupplyStoryChart'
 import { RESOURCE_LABELS } from './themeColors'
 import type { FixState } from './WeakestLinkCallout'
 
-// Problems shown before "Show all": enough for the story, few enough to read at a glance.
-const PROBLEMS_SHOWN = 3
 const pct = (x: number) => `${Math.round(x * 100)}%`
 /** Like pct, but keeps a decimal near the top so 99.5% doesn't read as a promise of 100%. */
 const pctFine = (x: number) => (x > 0.99 && x < 1 ? `${(x * 100).toFixed(1)}%` : pct(x))
@@ -27,22 +20,16 @@ type Props = {
   applying: boolean
   onApplyFix: () => void
   rows: PipelineRow[]
-  exceptions: SupplyException[]
-  onException: (target: ExceptionTarget) => void
-  /** The supply the caption under the charts follows: whatever runs out first. */
-  resource: ResourceKey
-  /** The trip view: the centerpiece, right under the verdict. */
+  /** The trip view: the centerpiece, right under the Fix button. */
   trip?: ReactNode
 }
 
 /**
- * The Overview tab: the verdict and its fix, the trip, the supplies over time, then the top
- * problems. The key numbers sit in the strip along the bottom.
+ * The top of the page: the best fix, the trip, and the supplies over time. The key numbers sit in
+ * the strip along the bottom.
  */
 export function SupplyOverview(props: Props) {
-  const { plan, result, exceptions } = props
-  const [showAll, setShowAll] = useState(false)
-  const shown = showAll ? exceptions : exceptions.slice(0, PROBLEMS_SHOWN)
+  const { plan, result } = props
   return (
     <div className="overview sc-overview">
       <Verdict {...props} />
@@ -54,61 +41,9 @@ export function SupplyOverview(props: Props) {
           Supplies left at the base
         </h2>
         <SupplyCharts plan={plan} result={result} rows={props.rows} />
-        <p className="sc-caption">{storyCaption(plan, result, props.rows, props.resource)}</p>
-      </section>
-
-      <section className="sc-panel" aria-labelledby="sc-exceptions-title">
-        <h2 id="sc-exceptions-title" className="sc-h2">
-          To fix
-        </h2>
-        {exceptions.length === 0 ? (
-          <p className="sc-muted">Nothing needs fixing.</p>
-        ) : (
-          <>
-            <ul className="sc-exceptions">
-              {shown.map((e) => (
-                <li key={e.id}>
-                  <button
-                    type="button"
-                    className={`sc-exception is-${e.severity}`}
-                    onClick={() => props.onException(e.target)}
-                  >
-                    <span className="sc-exception-title">{e.title}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {exceptions.length > PROBLEMS_SHOWN && (
-              <button type="button" className="sc-link" onClick={() => setShowAll((s) => !s)}>
-                {showAll ? 'Show fewer' : `Show all ${exceptions.length}`}
-              </button>
-            )}
-          </>
-        )}
       </section>
     </div>
   )
-}
-
-/** One sentence under the chart saying what it shows, in this plan's own numbers. */
-function storyCaption(
-  plan: MissionPlan,
-  result: SimResult,
-  rows: PipelineRow[],
-  resource: ResourceKey,
-): string {
-  const name = RESOURCE_LABELS[resource].toLowerCase()
-  const out = runsOutDay(result, resource)
-  if (out === null) {
-    return `Even in an unlucky mission (the worst 1 in 10), there is always some ${name} left.`
-  }
-  const next = rows
-    .filter((r) => r.arrivalDay > out && r.arrivalDay < plan.durationDays)
-    .sort((a, b) => a.arrivalDay - b.arrivalDay)[0]
-  const outMonth = Math.floor(out / 30.4375) + 1
-  return next
-    ? `In an unlucky mission (the worst 1 in 10), the ${name} is gone by month ${outMonth}, before ${next.flight.label} lands in month ${Math.floor(next.arrivalDay / 30.4375) + 1}.`
-    : `In an unlucky mission (the worst 1 in 10), the ${name} is gone by month ${outMonth}, and no more arrives.`
 }
 
 function Verdict(props: Props) {
