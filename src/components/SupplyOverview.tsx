@@ -38,7 +38,7 @@ export function SupplyOverview(props: Props) {
 
       <section id="supplies" className="sc-panel" aria-labelledby="sc-timeline-title">
         <h2 id="sc-timeline-title" className="sc-h2">
-          Supplies left at the base
+          Supplies graph
         </h2>
         <SupplyCharts plan={plan} result={result} rows={props.rows} />
       </section>
