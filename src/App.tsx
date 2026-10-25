@@ -253,7 +253,7 @@ function App() {
 
         <section id="shipments" className="sc-page-section" aria-labelledby="shipments-title">
           <h2 id="shipments-title" className="sc-h2">
-            What's being shipped
+            Shipments
           </h2>
           <ShipmentsView
             plan={plan}
