@@ -227,7 +227,7 @@ function App() {
           trip={
             <section id="trip" className="sc-trip" aria-labelledby="trip-title">
               <h2 id="trip-title" className="sc-h2">
-                The trip
+                Trip
               </h2>
               {supply.hasWindows ? (
                 <OrbitView
