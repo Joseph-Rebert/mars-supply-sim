@@ -101,10 +101,10 @@ p {
 /* ---------- Layout ---------- */
 
 .app {
-  /* Header, tabs, and the active tab (scrolls). The key numbers live on the Overview now. */
+  /* Header, tabs, the active tab (scrolls), and the key numbers pinned along the bottom. */
   height: 100vh;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   /* An auto column would grow to the header's full width; keep it to the viewport. */
   grid-template-columns: minmax(0, 1fr);
 }
@@ -2579,5 +2579,18 @@ p {
 @media (max-width: 1000px) {
   .sc-split.is-summary {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Narrow screens: let the masthead wrap onto two rows instead of pushing past the edge. */
+@media (max-width: 720px) {
+  .app-header {
+    height: auto;
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding-block: 8px;
+  }
+  .app-header .app-status:empty {
+    display: none;
   }
 }

@@ -2,8 +2,6 @@ import { useState, type ReactNode } from 'react'
 import type { FixKind, WeakestLink } from '../lib/analysis'
 import {
   runsOutDay,
-  supplyCosts,
-  type CostSummary,
   type ExceptionTarget,
   type PipelineRow,
   type SupplyException,
@@ -14,8 +12,6 @@ import { SupplyCharts } from './SupplyStoryChart'
 import { RESOURCE_LABELS } from './themeColors'
 import type { FixState } from './WeakestLinkCallout'
 
-// Survival the plan aims for; the same target the fix search uses (DEFAULT_FIX_OPTIONS).
-const TARGET_SURVIVAL = 0.9
 // Problems shown before "Show all": enough for the story, few enough to read at a glance.
 const PROBLEMS_SHOWN = 3
 const pct = (x: number) => `${Math.round(x * 100)}%`
@@ -48,7 +44,6 @@ type Props = {
   applying: boolean
   onApplyFix: () => void
   rows: PipelineRow[]
-  cost: CostSummary
   exceptions: SupplyException[]
   onException: (target: ExceptionTarget) => void
   /** The supply the caption under the charts follows: whatever runs out first. */
@@ -58,15 +53,13 @@ type Props = {
 }
 
 /**
- * The top of the page: the verdict and its fix, the trip, the supplies over time, then two numbers
- * and the top problems. Everything else sits further down the page.
+ * The Overview tab: the verdict and its fix, the trip, the supplies over time, then the top
+ * problems. The key numbers sit in the strip along the bottom.
  */
 export function SupplyOverview(props: Props) {
-  const { plan, result, cost, exceptions } = props
+  const { plan, result, exceptions } = props
   const [showAll, setShowAll] = useState(false)
   const shown = showAll ? exceptions : exceptions.slice(0, PROBLEMS_SHOWN)
-  const equipmentUsd = supplyCosts(plan).reduce((s, c) => s + (c.buyUsd ?? 0), 0)
-  const missionUsd = cost.costUsd + equipmentUsd
   return (
     <div className="overview sc-overview">
       <Verdict {...props} />
@@ -81,51 +74,35 @@ export function SupplyOverview(props: Props) {
         <p className="sc-caption">{storyCaption(plan, result, props.rows, props.resource)}</p>
       </section>
 
-      <div className="sc-split is-summary">
-        <div className="sc-kpis is-two">
-          <Kpi
-            label="Crew survives"
-            value={pct(result.survivalRate)}
-            note={`Goal: ${pct(TARGET_SURVIVAL)}`}
-            tone={survivalTone(result.survivalRate)}
-          />
-          <Kpi
-            label="Mission cost"
-            value={`$${fmt(missionUsd / 1e6)}M`}
-            note={`${cost.launches} rockets $${fmt(cost.costUsd / 1e6)}M · equipment $${fmt(equipmentUsd / 1e6)}M`}
-          />
-        </div>
-
-        <section className="sc-panel" aria-labelledby="sc-exceptions-title">
-          <h2 id="sc-exceptions-title" className="sc-h2">
-            To fix
-          </h2>
-          {exceptions.length === 0 ? (
-            <p className="sc-muted">Nothing needs fixing.</p>
-          ) : (
-            <>
-              <ul className="sc-exceptions">
-                {shown.map((e) => (
-                  <li key={e.id}>
-                    <button
-                      type="button"
-                      className={`sc-exception is-${e.severity}`}
-                      onClick={() => props.onException(e.target)}
-                    >
-                      <span className="sc-exception-title">{e.title}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {exceptions.length > PROBLEMS_SHOWN && (
-                <button type="button" className="sc-link" onClick={() => setShowAll((s) => !s)}>
-                  {showAll ? 'Show fewer' : `Show all ${exceptions.length}`}
-                </button>
-              )}
-            </>
-          )}
-        </section>
-      </div>
+      <section className="sc-panel" aria-labelledby="sc-exceptions-title">
+        <h2 id="sc-exceptions-title" className="sc-h2">
+          To fix
+        </h2>
+        {exceptions.length === 0 ? (
+          <p className="sc-muted">Nothing needs fixing.</p>
+        ) : (
+          <>
+            <ul className="sc-exceptions">
+              {shown.map((e) => (
+                <li key={e.id}>
+                  <button
+                    type="button"
+                    className={`sc-exception is-${e.severity}`}
+                    onClick={() => props.onException(e.target)}
+                  >
+                    <span className="sc-exception-title">{e.title}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {exceptions.length > PROBLEMS_SHOWN && (
+              <button type="button" className="sc-link" onClick={() => setShowAll((s) => !s)}>
+                {showAll ? 'Show fewer' : `Show all ${exceptions.length}`}
+              </button>
+            )}
+          </>
+        )}
+      </section>
     </div>
   )
 }

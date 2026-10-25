@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AssumptionsDrawer } from './components/AssumptionsDrawer'
+import { CrewRoster } from './components/CrewRoster'
 import { fmt } from './components/format'
+import { MissionSetupForm } from './components/MissionSetupForm'
 import { MissionPicker, type MissionSelection, type SavedMission } from './components/MissionPicker'
 import { OrbitView } from './components/OrbitView'
 import { PlanMissionWizard } from './components/PlanMissionWizard'
 import { ShipmentsView } from './components/ShipmentsView'
+import { StatsStrip } from './components/StatsStrip'
 import { SupplyCostTable } from './components/SupplyCostTable'
 import { SupplyOverview } from './components/SupplyOverview'
+import { panelId, tabId } from './components/tabIds'
+import { Tabs, type TabDef } from './components/Tabs'
 import type { FixState } from './components/WeakestLinkCallout'
 import { weakestLink, type SuggestedFix, type WeakestLink } from './lib/analysis'
 import { ORDER_LEAD_TIME_DAYS } from './lib/data'
@@ -15,7 +20,6 @@ import { withBaseCargo } from './lib/manifest'
 import { presetById, type PresetId } from './lib/presets'
 import { DEFAULT_RUN_OPTIONS, runMission } from './lib/sim'
 import {
-  costSummary,
   equipmentExceptions,
   fuelExceptions,
   orderSchedule,
@@ -28,8 +32,8 @@ import {
 import { launchWindows, transferFor } from './lib/transfers'
 import type { MissionPlan, ResourceKey, SimResult } from './lib/types'
 
-// One page: the verdict and its fix, the key numbers, what runs out, and what's being shipped, with
-// costs and the journey one click down. A new mission comes from the Set up mission wizard.
+// Overview leads with the verdict, the trip, and the supplies over time; cargo, crew and setup each
+// get a tab, and the key numbers sit in a strip along the bottom. A new mission comes from the wizard.
 // App state: the plan being edited, and the last run (with the plan that produced it, so the results
 // never silently describe a different plan). The best fix is searched in a worker after each run.
 
@@ -43,6 +47,15 @@ function simulate(plan: MissionPlan): Run {
 /** Survival and weight before and after the last applied fix, for one line under the overview. */
 type FixedFrom = { before: number; after: number; addedKg: number }
 
+type TabKey = 'overview' | 'cargo' | 'crew' | 'setup'
+const TABS: readonly TabDef<TabKey>[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'cargo', label: 'Resupplies & Cargo' },
+  { id: 'crew', label: 'Crew' },
+  { id: 'setup', label: 'Mission Setup' },
+]
+const TABS_ID = 'main'
+
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 const pctFine = (x: number) =>
   x > 0.99 && x < 1 ? `${(x * 100).toFixed(1)}%` : `${Math.round(x * 100)}%`
@@ -54,6 +67,7 @@ function App() {
   const [plan, setPlan] = useState(() => presetById('draft').plan())
   const [run, setRun] = useState(() => simulate(plan))
   // What the mission dropdown shows; any edit (or an applied fix) makes it 'custom' until saved.
+  const [tab, setTab] = useState<TabKey>('overview')
   const [selection, setSelection] = useState<MissionSelection>({ kind: 'preset', id: 'draft' })
   const [missions, setMissions] = useState<SavedMission[]>([])
   // The fix found for a specific run; anything else means that run's search is still going.
@@ -102,7 +116,6 @@ function App() {
       rows,
       slots,
       exceptions: supplyExceptions(link, slots, rows),
-      cost: costSummary(p, rows),
       hasWindows: launchWindows(p.destination).length > 0,
       transitDays: transferFor(p.destination, p.startDate).transitDays,
     }
@@ -127,7 +140,12 @@ function App() {
     if (target.tab === 'orders') setMarkedRocket(target.launchDate ?? null)
     if (target.tab === 'setup') setWizardOpen(true)
     const id = target.tab === 'orders' ? 'shipments' : target.tab === 'stock' ? 'supplies' : null
-    if (id) document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (!id) return
+    setTab(id === 'shipments' ? 'cargo' : 'overview')
+    // Wait for the tab to render before scrolling to it.
+    afterPaint(() =>
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    )
   }
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
 
@@ -193,7 +211,7 @@ function App() {
     : undefined
 
   return (
-    <div className="app is-single">
+    <div className="app">
       <header className="app-header">
         <h1 className="app-title">Ares Supply</h1>
         <MissionPicker
@@ -240,77 +258,110 @@ function App() {
         </button>
       </header>
 
-      <main className={stale ? 'tab-panel is-stale' : 'tab-panel'}>
+      <Tabs tabs={TABS} active={tab} onChange={setTab} idPrefix={TABS_ID} label="Mission views" />
+
+      <main
+        className={stale ? 'tab-panel is-stale' : 'tab-panel'}
+        role="tabpanel"
+        id={panelId(TABS_ID, tab)}
+        aria-labelledby={tabId(TABS_ID, tab)}
+      >
         {runError && (
           <p className="run-error" role="alert">
             ▼ Something went wrong: {runError}. Showing the last results that worked.
           </p>
         )}
 
-        <SupplyOverview
-          plan={run.plan}
-          result={run.result}
-          link={run.link}
-          fix={fixState}
-          applyBlockedReason={applyBlockedReason}
-          applying={applying}
-          onApplyFix={applyFix}
-          rows={supply.rows}
-          cost={supply.cost}
-          exceptions={exceptions}
-          onException={goTo}
-          resource={linkedResource}
-          trip={
-            <section id="trip" className="sc-trip" aria-labelledby="trip-title">
-              <h2 id="trip-title" className="sc-h2">
-                The trip
-              </h2>
-              {supply.hasWindows ? (
-                <OrbitView
-                  key={`${run.plan.startDate}|${run.plan.flights.map((f) => f.launchDate).join()}`}
-                  plan={run.plan}
-                  rows={supply.rows}
-                />
-              ) : (
-                <p className="sc-muted">
-                  Rockets reach the Moon in {supply.transitDays} days and can leave any day, so
-                  there's no long trip to show.
-                </p>
-              )}
-            </section>
-          }
-        />
-        {fixedFrom && (
-          <p className="sc-fixed">
-            Fix applied: survival {pctFine(fixedFrom.before)} → {pctFine(fixedFrom.after)}
-            {fixedFrom.addedKg > 0 ? `, ${fmt(fixedFrom.addedKg)} kg more cargo` : ''}.
-          </p>
+        {tab === 'overview' && (
+          <>
+            <SupplyOverview
+              plan={run.plan}
+              result={run.result}
+              link={run.link}
+              fix={fixState}
+              applyBlockedReason={applyBlockedReason}
+              applying={applying}
+              onApplyFix={applyFix}
+              rows={supply.rows}
+              exceptions={exceptions}
+              onException={goTo}
+              resource={linkedResource}
+              trip={
+                <section id="trip" className="sc-trip" aria-labelledby="trip-title">
+                  <h2 id="trip-title" className="sc-h2">
+                    The trip
+                  </h2>
+                  {supply.hasWindows ? (
+                    <OrbitView
+                      key={`${run.plan.startDate}|${run.plan.flights.map((f) => f.launchDate).join()}`}
+                      plan={run.plan}
+                      rows={supply.rows}
+                    />
+                  ) : (
+                    <p className="sc-muted">
+                      Rockets reach the Moon in {supply.transitDays} days and can leave any day, so
+                      there's no long trip to show.
+                    </p>
+                  )}
+                </section>
+              }
+            />
+            {fixedFrom && (
+              <p className="sc-fixed">
+                Fix applied: survival {pctFine(fixedFrom.before)} → {pctFine(fixedFrom.after)}
+                {fixedFrom.addedKg > 0 ? `, ${fmt(fixedFrom.addedKg)} kg more cargo` : ''}.
+              </p>
+            )}
+          </>
         )}
 
-        <section id="shipments" className="sc-page-section" aria-labelledby="shipments-title">
-          <h2 id="shipments-title" className="sc-h2">
-            What's being shipped
-          </h2>
-          <ShipmentsView
-            plan={plan}
-            runSlots={supply.slots}
-            leadDays={leadDays}
-            highlight={markedRocket}
-            onChange={editPlan}
-          />
-        </section>
+        {tab === 'cargo' && (
+          <>
+            <section id="shipments" className="sc-page-section" aria-labelledby="shipments-title">
+              <h2 id="shipments-title" className="sc-h2">
+                What's being shipped
+              </h2>
+              <ShipmentsView
+                plan={plan}
+                runSlots={supply.slots}
+                leadDays={leadDays}
+                highlight={markedRocket}
+                onChange={editPlan}
+              />
+            </section>
 
-        <section className="sc-page-section">
-          <details className="sc-more">
-            <summary>What it costs</summary>
-            <p className="sc-muted">
-              Each rocket costs $178M however full it is, so its price is split across what it
-              carries by the room each thing takes. Equipment adds what it costs to buy.
-            </p>
-            <SupplyCostTable plan={plan} />
-          </details>
-        </section>
+            <section className="sc-page-section">
+              <details className="sc-more" open>
+                <summary>What it costs</summary>
+                <p className="sc-muted">
+                  Each rocket costs $178M however full it is, so its price is split across what it
+                  carries by the room each thing takes. Equipment adds what it costs to buy.
+                </p>
+                <SupplyCostTable plan={plan} />
+              </details>
+            </section>
+          </>
+        )}
+
+        {tab === 'crew' && (
+          <section className="sc-page-section">
+            <CrewRoster plan={plan} onChange={editPlan} result={run.result} resultPlan={run.plan} />
+          </section>
+        )}
+
+        {tab === 'setup' && (
+          <section className="sc-page-section setup-panel">
+            <MissionSetupForm
+              plan={plan}
+              onChange={editPlan}
+              onRun={() => tryRun(plan)}
+              runBlockedReason={blockedReason}
+            />
+          </section>
+        )}
       </main>
+
+      <StatsStrip result={run.result} plan={run.plan} />
 
       {wizardOpen && (
         <PlanMissionWizard
