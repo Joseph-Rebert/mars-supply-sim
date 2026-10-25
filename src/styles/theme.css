@@ -998,6 +998,7 @@ p {
 /* ---------- Demo scenario presets (GEA-35) ---------- */
 
 .preset-picker {
+  position: relative;
   margin-left: auto;
   display: flex;
   align-items: center;
@@ -1016,11 +1017,26 @@ p {
   background: var(--bg);
   border: 1px solid var(--rule-strong);
   border-radius: 0;
-  padding: 6px 8px;
+  /* Room on the right for the chevron drawn by .preset-picker::after. */
+  padding: 6px 32px 6px 10px;
   min-width: 0;
   max-width: 280px;
-  color-scheme: dark;
+  appearance: none;
   cursor: pointer;
+}
+
+/* The browser's own arrow sits tight to the edge; draw a plain chevron in the text color instead. */
+.preset-picker::after {
+  content: '';
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--text);
+  border-bottom: 1.5px solid var(--text);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
 }
 
 .preset-select:focus-visible {
