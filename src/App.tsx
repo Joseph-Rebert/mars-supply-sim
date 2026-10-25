@@ -264,15 +264,15 @@ function App() {
           />
         </section>
 
-        <section className="sc-page-section">
-          <details className="sc-more">
-            <summary>What it costs</summary>
-            <p className="sc-muted">
-              Each rocket costs $178M however full it is, so its price is split across what it
-              carries by the room each thing takes. Equipment adds what it costs to buy.
-            </p>
-            <SupplyCostTable plan={plan} />
-          </details>
+        <section id="costs" className="sc-page-section" aria-labelledby="costs-title">
+          <h2 id="costs-title" className="sc-h2">
+            What it costs
+          </h2>
+          <p className="sc-muted">
+            Each rocket costs $178M however full it is, so its price is split across what it carries
+            by the room each thing takes. Equipment adds what it costs to buy.
+          </p>
+          <SupplyCostTable plan={plan} />
         </section>
 
         <section id="crew" className="sc-page-section" aria-labelledby="crew-title">
