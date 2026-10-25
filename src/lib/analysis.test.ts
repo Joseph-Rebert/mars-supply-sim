@@ -21,6 +21,12 @@ import { presetById } from './presets'
 import { runMission } from './sim'
 import type { FailureCause, MissionPlan, SimResult } from './types'
 
+declare const process: { cpuUsage(): { user: number; system: number } }
+const cpuMs = () => {
+  const { user, system } = process.cpuUsage()
+  return (user + system) / 1000
+}
+
 function result(runs: number, survivalRate: number, failures: FailureCause[]): SimResult {
   return {
     runs,
@@ -164,9 +170,10 @@ describe('suggestFix', () => {
   beforeAll(() => {
     draft = fakePlan()
     draftResult = runMission(draft)
-    const start = performance.now()
+    // CPU time of this process, so heavy test files running in parallel don't count.
+    const start = cpuMs()
     fix = suggestFix(draft, draftResult)
-    fixMs = performance.now() - start
+    fixMs = cpuMs() - start
   }, SLOW)
 
   it('lifts the draft plan above 90% by fixing the water recycler spares, in time', () => {

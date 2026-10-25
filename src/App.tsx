@@ -3,16 +3,20 @@ import { CargoManifest } from './components/CargoManifest'
 import { CrewRoster } from './components/CrewRoster'
 import { fmt } from './components/format'
 import { MissionClock } from './components/MissionClock'
+import { MissionPicker, type MissionSelection, type SavedMission } from './components/MissionPicker'
 import { MissionSetupForm } from './components/MissionSetupForm'
 import { Panel } from './components/Panel'
 import { PlanComparison } from './components/PlanComparison'
 import { PlanMissionWizard } from './components/PlanMissionWizard'
 import { ResultsView } from './components/ResultsView'
+import { StatsStrip } from './components/StatsStrip'
+import { Tabs, type TabDef } from './components/Tabs'
+import { panelId, tabId } from './components/tabIds'
 import type { FixState } from './components/WeakestLinkCallout'
 import { nutritionWarning, suggestFix, weakestLink, type WeakestLink } from './lib/analysis'
 import type { SavedRun } from './lib/compare'
 import { runBlockedReason } from './lib/launchDates'
-import { presetById, PRESETS, type PresetId } from './lib/presets'
+import { presetById, type PresetId } from './lib/presets'
 import { DEFAULT_RUN_OPTIONS, runMission } from './lib/sim'
 import type { MissionPlan, SimResult } from './lib/types'
 
@@ -27,7 +31,14 @@ function simulate(plan: MissionPlan): Run {
   return { plan, result, link: weakestLink(result) }
 }
 
-const CUSTOM = 'custom'
+type TabKey = 'overview' | 'cargo' | 'crew' | 'setup'
+const TABS: readonly TabDef<TabKey>[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'cargo', label: 'Resupplies & Cargo' },
+  { id: 'crew', label: 'Crew' },
+  { id: 'setup', label: 'Mission Setup' },
+]
+const TABS_ID = 'main'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -37,8 +48,10 @@ const afterPaint = (work: () => void) => setTimeout(work, 30)
 function App() {
   const [plan, setPlan] = useState(() => presetById('draft').plan())
   const [run, setRun] = useState(() => simulate(plan))
-  // Which demo preset is loaded; any edit (or an applied fix) makes the plan 'custom'.
-  const [presetId, setPresetId] = useState<PresetId | typeof CUSTOM>('draft')
+  const [tab, setTab] = useState<TabKey>('overview')
+  // What the mission dropdown shows; any edit (or an applied fix) makes it 'custom' until saved.
+  const [selection, setSelection] = useState<MissionSelection>({ kind: 'preset', id: 'draft' })
+  const [missions, setMissions] = useState<SavedMission[]>([])
   // The fix found for a specific run; anything else means that run's search is still going.
   const [fix, setFix] = useState<{ for: Run; state: FixState } | null>(null)
   const [applying, setApplying] = useState(false)
@@ -87,25 +100,28 @@ function App() {
     }
   }
 
-  // Takes a plan (setup form) or an updater (manifest), like setPlan itself.
+  // Takes a plan (setup form) or an updater (manifest, crew), like setPlan itself.
   const editPlan = (next: MissionPlan | ((plan: MissionPlan) => MissionPlan)) => {
     setPlan(next)
-    setPresetId(CUSTOM)
+    setSelection({ kind: 'custom' })
   }
 
-  // One click loads and runs the preset, so the numbers on screen match the slides.
-  const loadPreset = (id: PresetId) => {
-    const next = presetById(id).plan()
+  /** Loads a plan and runs it right away, so the numbers on screen match the selection. */
+  const load = (next: MissionPlan, selected: MissionSelection) => {
     setPlan(next)
     tryRun(next)
-    setPresetId(id)
+    setSelection(selected)
   }
 
-  // A plan from the wizard replaces the current one and runs right away, like a preset.
-  const loadPlanned = (next: MissionPlan) => {
-    setPlan(next)
-    tryRun(next)
-    setPresetId(CUSTOM)
+  const saveMission = (toSave: MissionPlan): SavedMission => {
+    const n = missions.length
+    const mission = {
+      id: `m${n + 1}`,
+      name: `Mission ${String.fromCharCode(65 + (n % 26))}`,
+      plan: toSave,
+    }
+    setMissions((ms) => [...ms, mission])
+    return mission
   }
 
   function applyFix() {
@@ -139,45 +155,112 @@ function App() {
     <div className="app">
       <header className="app-header">
         <h1 className="app-title">Ares Supply</h1>
-        <p className="app-subtitle">─ Mission survival planner</p>
-        <label className="preset-picker">
-          <span className="preset-label">Scenario</span>
-          <select
-            className="preset-select"
-            value={presetId}
-            title={PRESETS.find((p) => p.id === presetId)?.summary}
-            onChange={(e) => {
-              const preset = PRESETS.find((p) => p.id === e.target.value)
-              if (preset) loadPreset(preset.id)
-            }}
+        <MissionPicker
+          value={selection}
+          saved={missions}
+          onPreset={(id: PresetId) => load(presetById(id).plan(), { kind: 'preset', id })}
+          onSaved={(id) => {
+            const m = missions.find((x) => x.id === id)
+            if (m) load(m.plan, { kind: 'saved', id })
+          }}
+          onNew={() => setWizardOpen(true)}
+          onSave={() => setSelection({ kind: 'saved', id: saveMission(plan).id })}
+        />
+        {stale ? (
+          <button
+            type="button"
+            className="app-status is-caution status-button"
+            onClick={() => tryRun(plan)}
+            disabled={blockedReason !== undefined}
+            title={blockedReason ?? 'Run the edited plan'}
           >
-            {PRESETS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-            <option value={CUSTOM} disabled>
-              Custom plan
-            </option>
-          </select>
-        </label>
-        <button type="button" className="btn btn-small" onClick={() => setWizardOpen(true)}>
-          + New mission
-        </button>
-        <div className={stale ? 'app-status is-caution' : 'app-status'} role="status">
-          <span className="status-dot" aria-hidden="true" />
-          <span className="app-status-text">
-            {stale
-              ? 'Plan changed · run again'
-              : `${fmt(run.result.runs)} runs · seed ${run.result.seed}`}
-          </span>
-        </div>
+            <span className="status-dot" aria-hidden="true" />
+            <span className="app-status-text">Plan changed · Run again</span>
+          </button>
+        ) : (
+          <div className="app-status" role="status">
+            <span className="status-dot" aria-hidden="true" />
+            <span className="app-status-text">
+              {fmt(run.result.runs)} runs · seed {run.result.seed}
+            </span>
+          </div>
+        )}
         <MissionClock />
       </header>
 
-      <main className="layout">
-        <div className="column">
-          <Panel title="Mission setup">
+      <Tabs tabs={TABS} active={tab} onChange={setTab} idPrefix={TABS_ID} label="Mission views" />
+
+      <main
+        className={stale ? 'tab-panel is-stale' : 'tab-panel'}
+        role="tabpanel"
+        id={panelId(TABS_ID, tab)}
+        aria-labelledby={tabId(TABS_ID, tab)}
+      >
+        {runError && (
+          <p className="run-error" role="alert">
+            ▼ Run failed: {runError}. Showing the last successful run.
+          </p>
+        )}
+
+        {tab === 'overview' && (
+          <>
+            <ResultsView
+              result={run.result}
+              plan={run.plan}
+              link={run.link}
+              fix={fixState}
+              applyBlockedReason={
+                stale ? 'The plan changed since this run. Run again for a fresh fix.' : undefined
+              }
+              applying={applying}
+              onApplyFix={applyFix}
+              nutrition={nutrition}
+              onApplyNutritionFix={() => nutrition?.fix && applyPlan(nutrition.fix.plan)}
+            />
+            <Panel title="Compare plans">
+              <div className="comparison-actions">
+                <button type="button" className="btn btn-small" onClick={() => saveRun('a')}>
+                  Save run as A
+                </button>
+                <button type="button" className="btn btn-small" onClick={() => saveRun('b')}>
+                  Save run as B
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-small"
+                  disabled={!saved.a && !saved.b}
+                  onClick={() => setSaved({})}
+                >
+                  Clear
+                </button>
+              </div>
+              {saved.a && saved.b ? (
+                <PlanComparison a={saved.a} b={saved.b} />
+              ) : (
+                <p className="hint">
+                  {saved.a || saved.b
+                    ? `Saved ${saved.a ? 'A' : 'B'}. Run another plan (or pick a mission) and save it as ${saved.a ? 'B' : 'A'}.`
+                    : 'Save this run as A, change the plan or mission, run again and save as B.'}
+                </p>
+              )}
+            </Panel>
+          </>
+        )}
+
+        {tab === 'cargo' && (
+          <Panel title="Resupplies & cargo">
+            <CargoManifest plan={plan} onChange={editPlan} />
+          </Panel>
+        )}
+
+        {tab === 'crew' && (
+          <Panel title="Crew">
+            <CrewRoster plan={plan} onChange={editPlan} result={run.result} resultPlan={run.plan} />
+          </Panel>
+        )}
+
+        {tab === 'setup' && (
+          <Panel title="Mission setup" className="setup-panel">
             <MissionSetupForm
               plan={plan}
               onChange={editPlan}
@@ -185,69 +268,21 @@ function App() {
               runBlockedReason={blockedReason}
             />
           </Panel>
-          <Panel title="Cargo manifest">
-            <CargoManifest plan={plan} onChange={editPlan} />
-          </Panel>
-        </div>
-
-        <div className={stale ? 'column is-stale' : 'column'}>
-          {runError && (
-            <p className="run-error" role="alert">
-              ▼ Run failed: {runError}. Showing the last successful run.
-            </p>
-          )}
-          <ResultsView
-            result={run.result}
-            plan={run.plan}
-            link={run.link}
-            fix={fixState}
-            applyBlockedReason={
-              stale ? 'The plan changed since this run. Run again for a fresh fix.' : undefined
-            }
-            applying={applying}
-            onApplyFix={applyFix}
-            nutrition={nutrition}
-            onApplyNutritionFix={() => nutrition?.fix && applyPlan(nutrition.fix.plan)}
-          />
-          <Panel title="Compare plans">
-            <div className="comparison-actions">
-              <button type="button" className="btn btn-small" onClick={() => saveRun('a')}>
-                Save run as A
-              </button>
-              <button type="button" className="btn btn-small" onClick={() => saveRun('b')}>
-                Save run as B
-              </button>
-              <button
-                type="button"
-                className="btn btn-small"
-                disabled={!saved.a && !saved.b}
-                onClick={() => setSaved({})}
-              >
-                Clear
-              </button>
-            </div>
-            {saved.a && saved.b ? (
-              <PlanComparison a={saved.a} b={saved.b} />
-            ) : (
-              <p className="hint">
-                {saved.a || saved.b
-                  ? `Saved ${saved.a ? 'A' : 'B'}. Run another plan (or pick a scenario) and save it as ${saved.a ? 'B' : 'A'}.`
-                  : 'Save this run as A, change the plan or scenario, run again and save as B.'}
-              </p>
-            )}
-          </Panel>
-        </div>
-
-        <Panel title="Crew" className="crew-row">
-          <CrewRoster plan={plan} onChange={editPlan} result={run.result} resultPlan={run.plan} />
-        </Panel>
+        )}
       </main>
+
+      <StatsStrip result={run.result} plan={run.plan} />
+
       {wizardOpen && (
         <PlanMissionWizard
           open={wizardOpen}
           from={plan}
           onClose={() => setWizardOpen(false)}
-          onLoad={loadPlanned}
+          onLoad={(next) => {
+            const mission = saveMission(next)
+            load(next, { kind: 'saved', id: mission.id })
+            setTab('overview')
+          }}
         />
       )}
     </div>

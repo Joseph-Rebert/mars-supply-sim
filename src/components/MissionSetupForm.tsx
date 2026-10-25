@@ -16,6 +16,7 @@ import {
   withDestination,
 } from '../lib/plan'
 import type { Destination, MissionPlan, O2Source, ReadinessTier } from '../lib/types'
+import { commsDelayLabel } from './format'
 import { Readout } from './Readout'
 
 type Props = {
@@ -35,12 +36,6 @@ const READINESS_LABEL: Record<ReadinessTier, string> = {
   flightProven: 'flight-proven',
   demonstrated: 'demonstrated',
   concept: 'concept',
-}
-
-function commsDelayLabel(destination: Destination): string {
-  const { min, max } = DESTINATION_PROFILES[destination].commsDelaySeconds
-  if (max < 60) return `${min.toFixed(1)} s`
-  return `${Math.round(min / 60)}–${Math.round(max / 60)} min`
 }
 
 function resupplyLabel(destination: Destination): string {

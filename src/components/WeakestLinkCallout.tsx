@@ -27,21 +27,23 @@ export function WeakestLinkCallout({ link, fix, applyBlockedReason, applying, on
 
   return (
     <div className="callout is-critical">
-      <div role="alert">
-        <p className="callout-title">▼ Weakest link</p>
-        <p className="callout-text">{link.sentence}</p>
+      <div className="callout-main">
+        <div role="alert">
+          <p className="callout-title">▼ Weakest link</p>
+          <p className="callout-text">{link.sentence}</p>
+        </div>
+        <ol className="cause-list" aria-label="Top causes">
+          {link.causes.map((c) => (
+            <li key={c.key} className="cause">
+              <span className="cause-label">{c.label}</span>
+              <span className="cause-bar" aria-hidden="true">
+                <span style={{ width: `${Math.max(2, c.share * 100)}%` }} />
+              </span>
+              <span className="cause-share">{pct(c.share)}</span>
+            </li>
+          ))}
+        </ol>
       </div>
-      <ol className="cause-list" aria-label="Top causes">
-        {link.causes.map((c) => (
-          <li key={c.key} className="cause">
-            <span className="cause-label">{c.label}</span>
-            <span className="cause-bar" aria-hidden="true">
-              <span style={{ width: `${Math.max(2, c.share * 100)}%` }} />
-            </span>
-            <span className="cause-share">{pct(c.share)}</span>
-          </li>
-        ))}
-      </ol>
 
       <div className="fix-section">
         <p className="callout-title fix-title">Suggested fix</p>

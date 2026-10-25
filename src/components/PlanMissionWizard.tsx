@@ -171,8 +171,8 @@ export function PlanMissionWizard({ open, from, onClose, onLoad }: Props) {
               max={CREW_MAX}
               onChange={(n) => update({ crew: withCrewSize({ ...from, crew: spec.crew }, n).crew })}
             />
-            <div className="crew-table" role="table" aria-label="Crew profiles">
-              <div className="crew-row crew-head" role="row">
+            <div className="wiz-crew-table" role="table" aria-label="Crew profiles">
+              <div className="wiz-crew-row wiz-crew-head" role="row">
                 {['Name', 'Sex', 'Age', 'Mass kg', 'Height m', 'Activity', 'Exercise min/day'].map(
                   (h) => (
                     <span key={h} role="columnheader">
@@ -182,7 +182,7 @@ export function PlanMissionWizard({ open, from, onClose, onLoad }: Props) {
                 )}
               </div>
               {spec.crew.map((m, i) => (
-                <div className="crew-row" role="row" key={m.id}>
+                <div className="wiz-crew-row" role="row" key={m.id}>
                   <input
                     className="wiz-input"
                     aria-label={`Crew ${i + 1} name`}
