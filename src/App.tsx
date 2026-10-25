@@ -260,6 +260,25 @@ function App() {
           exceptions={exceptions}
           onException={goTo}
           resource={linkedResource}
+          trip={
+            <section id="trip" className="sc-trip" aria-labelledby="trip-title">
+              <h2 id="trip-title" className="sc-h2">
+                The trip
+              </h2>
+              {supply.hasWindows ? (
+                <OrbitView
+                  key={`${run.plan.startDate}|${run.plan.flights.map((f) => f.launchDate).join()}`}
+                  plan={run.plan}
+                  rows={supply.rows}
+                />
+              ) : (
+                <p className="sc-muted">
+                  Rockets reach the Moon in {supply.transitDays} days and can leave any day, so
+                  there's no long trip to show.
+                </p>
+              )}
+            </section>
+          }
         />
         {fixedFrom && (
           <p className="sc-fixed">
@@ -289,21 +308,6 @@ function App() {
               carries by the room each thing takes. Equipment adds what it costs to buy.
             </p>
             <SupplyCostTable plan={plan} />
-          </details>
-          <details className="sc-more">
-            <summary>The journey to Mars</summary>
-            {supply.hasWindows ? (
-              <OrbitView
-                key={`${run.plan.startDate}|${run.plan.flights.map((f) => f.launchDate).join()}`}
-                plan={run.plan}
-                rows={supply.rows}
-              />
-            ) : (
-              <p className="sc-muted">
-                Rockets reach the Moon in {supply.transitDays} days and can leave any day, so
-                there's no long trip to show.
-              </p>
-            )}
           </details>
         </section>
       </main>

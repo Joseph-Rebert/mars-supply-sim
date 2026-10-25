@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { FixKind, WeakestLink } from '../lib/analysis'
 import {
   runsOutDay,
@@ -53,11 +53,13 @@ type Props = {
   onException: (target: ExceptionTarget) => void
   /** The supply the caption under the charts follows: whatever runs out first. */
   resource: ResourceKey
+  /** The trip view: the centerpiece, right under the verdict. */
+  trip?: ReactNode
 }
 
 /**
- * The Overview tab: only what someone needs at a glance. The verdict and its fix, two numbers, the
- * top problems, and one simple chart. Everything else is a tab or a click away.
+ * The top of the page: the verdict and its fix, the trip, the supplies over time, then two numbers
+ * and the top problems. Everything else sits further down the page.
  */
 export function SupplyOverview(props: Props) {
   const { plan, result, cost, exceptions } = props
@@ -69,21 +71,31 @@ export function SupplyOverview(props: Props) {
     <div className="overview sc-overview">
       <Verdict {...props} />
 
-      <div className="sc-kpis is-two">
-        <Kpi
-          label="Crew survives"
-          value={pct(result.survivalRate)}
-          note={`Goal: ${pct(TARGET_SURVIVAL)}`}
-          tone={survivalTone(result.survivalRate)}
-        />
-        <Kpi
-          label="Mission cost"
-          value={`$${fmt(missionUsd / 1e6)}M`}
-          note={`${cost.launches} rockets $${fmt(cost.costUsd / 1e6)}M · equipment $${fmt(equipmentUsd / 1e6)}M`}
-        />
-      </div>
+      {props.trip}
 
-      <div className="sc-split">
+      <section id="supplies" className="sc-panel" aria-labelledby="sc-timeline-title">
+        <h2 id="sc-timeline-title" className="sc-h2">
+          Supplies left at the base
+        </h2>
+        <SupplyCharts plan={plan} result={result} rows={props.rows} />
+        <p className="sc-caption">{storyCaption(plan, result, props.rows, props.resource)}</p>
+      </section>
+
+      <div className="sc-split is-summary">
+        <div className="sc-kpis is-two">
+          <Kpi
+            label="Crew survives"
+            value={pct(result.survivalRate)}
+            note={`Goal: ${pct(TARGET_SURVIVAL)}`}
+            tone={survivalTone(result.survivalRate)}
+          />
+          <Kpi
+            label="Mission cost"
+            value={`$${fmt(missionUsd / 1e6)}M`}
+            note={`${cost.launches} rockets $${fmt(cost.costUsd / 1e6)}M · equipment $${fmt(equipmentUsd / 1e6)}M`}
+          />
+        </div>
+
         <section className="sc-panel" aria-labelledby="sc-exceptions-title">
           <h2 id="sc-exceptions-title" className="sc-h2">
             To fix
@@ -112,14 +124,6 @@ export function SupplyOverview(props: Props) {
               )}
             </>
           )}
-        </section>
-
-        <section id="supplies" className="sc-panel" aria-labelledby="sc-timeline-title">
-          <h2 id="sc-timeline-title" className="sc-h2">
-            Supplies left at the base
-          </h2>
-          <SupplyCharts plan={plan} result={result} rows={props.rows} />
-          <p className="sc-caption">{storyCaption(plan, result, props.rows, props.resource)}</p>
         </section>
       </div>
     </div>

@@ -2562,3 +2562,22 @@ p {
   font-weight: 600;
   color: var(--text);
 }
+
+/* GEA-44: the trip is the centerpiece; the numbers and problems sit under the supplies. */
+.sc-trip {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.sc-split.is-summary {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+}
+
+@media (max-width: 1000px) {
+  .sc-split.is-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
