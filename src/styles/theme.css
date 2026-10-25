@@ -2053,6 +2053,7 @@ p {
 .orbit-canvas canvas {
   display: block;
   max-width: 100%;
+  margin-inline: auto;
 }
 
 .orbit-side {
