@@ -1,7 +1,7 @@
 // Before vs. after: two saved runs side by side, with which way each difference cuts.
 
 import { weakestLink } from './analysis'
-import { COMPONENTS, SHIPPING_OVERHEAD_KG_PER_KG } from './data'
+import { COMPONENTS, FUEL_TANK_KG_PER_KG, SHIPPING_OVERHEAD_KG_PER_KG } from './data'
 import { supplementMassKg } from './manifest'
 import {
   COMPONENT_KEYS,
@@ -15,14 +15,15 @@ import {
 /** A plan and the run it produced, kept in memory under a name ("Before", "A", …). */
 export type SavedRun = { name: string; plan: MissionPlan; result: SimResult }
 
-/** Launch mass per category: consumables with their containers, and all spare parts. */
+/** Launch mass per category: consumables and rover fuel with their containers, and all spare parts (not equipment). */
 export function massByCategory(plan: MissionPlan): Record<ResourceKey, number> {
-  const out: Record<ResourceKey, number> = { o2: 0, water: 0, food: 0, spares: 0 }
+  const out: Record<ResourceKey, number> = { o2: 0, water: 0, food: 0, spares: 0, fuel: 0 }
   for (const f of plan.flights) {
     for (const r of CONSUMABLE_KEYS) {
       out[r] += f.consumablesKg[r] * (1 + SHIPPING_OVERHEAD_KG_PER_KG[r])
     }
     for (const c of COMPONENT_KEYS) out.spares += f.spares[c] * COMPONENTS[c].spareMassKg
+    out.fuel += (f.fuelKg ?? 0) * (1 + FUEL_TANK_KG_PER_KG)
   }
   // Vitamin C tablets count as food.
   out.food += supplementMassKg(plan)

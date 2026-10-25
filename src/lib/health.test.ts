@@ -127,8 +127,8 @@ describe('health in the Monte Carlo', () => {
     const unfit = result.failures.filter((f) => f.kind === 'crewUnfit')
     expect(unfit.length).toBeGreaterThan(0)
     expect(unfit[0]).toMatchObject({ kind: 'crewUnfit', driver: 'boneLoss' })
-    expect(describeFailure(unfit[0])).toContain('bone loss passed twice NASA')
-    expect(weakestLink(result).sentence).toContain('medically unfit')
+    expect(describeFailure(unfit[0])).toContain('bones weakened to twice NASA')
+    expect(weakestLink(result).sentence).toContain('bones get too weak')
   })
 
   it('keeps an exercise-heavy, well-fed crew healthy for 30 months on Mars', () => {

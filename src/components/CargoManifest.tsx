@@ -1,4 +1,4 @@
-import { COMPONENTS, SHIPPING_OVERHEAD_KG_PER_KG } from '../lib/data'
+import { COMPONENTS, FUEL_TANK_KG_PER_KG, SHIPPING_OVERHEAD_KG_PER_KG } from '../lib/data'
 import { clampLaunchDate, withFlightLaunchDate } from '../lib/launchDates'
 import {
   flightCapacity,
@@ -35,10 +35,15 @@ const STATUS_TONE: Record<MassStatus, Tone> = {
   over: 'critical',
 }
 
-const CONTAINER: Record<ConsumableKey, string> = { o2: 'tank', water: 'bags', food: 'packaging' }
+const CONTAINER: Record<ConsumableKey | 'fuel', string> = {
+  o2: 'for the tanks',
+  water: 'for the bags',
+  food: 'for packaging',
+  fuel: 'for the tanks',
+}
 
-const overheadHint = (key: ConsumableKey) =>
-  `+${Math.round(SHIPPING_OVERHEAD_KG_PER_KG[key] * 100)}% ${CONTAINER[key]}`
+const overheadHint = (key: ConsumableKey | 'fuel') =>
+  `+${Math.round((key === 'fuel' ? FUEL_TANK_KG_PER_KG : SHIPPING_OVERHEAD_KG_PER_KG[key]) * 100)}% ${CONTAINER[key]}`
 
 function Stepper(props: {
   label: string
@@ -80,7 +85,7 @@ function Stepper(props: {
   )
 }
 
-function MassBar({ cap, label }: { cap: FlightCapacity; label: string }) {
+export function MassBar({ cap, label }: { cap: FlightCapacity; label: string }) {
   const { massKg, capacityKg } = cap
   const pct = capacityKg > 0 ? (massKg / capacityKg) * 100 : massKg > 0 ? Infinity : 0
   return (
@@ -106,7 +111,7 @@ function MassBar({ cap, label }: { cap: FlightCapacity; label: string }) {
   )
 }
 
-function FlightItems({
+export function FlightItems({
   flight,
   onChange,
 }: {
@@ -118,7 +123,7 @@ function FlightItems({
       {CONSUMABLE_KEYS.map((key) => (
         <div key={key} className="line-item">
           <span className="line-item-label">
-            {RESOURCE_LABELS[key]} kg
+            {RESOURCE_LABELS[key]} (kg)
             <span className="line-item-hint">{overheadHint(key)}</span>
           </span>
           <Stepper
@@ -131,14 +136,26 @@ function FlightItems({
           />
         </div>
       ))}
+      <div className="line-item">
+        <span className="line-item-label">
+          Rover fuel (kg)
+          <span className="line-item-hint">{overheadHint('fuel')}</span>
+        </span>
+        <Stepper
+          label={`Rover fuel kg on ${flight.label}`}
+          value={flight.fuelKg ?? 0}
+          step={CONSUMABLE_STEP_KG}
+          onChange={(kg) => onChange((f) => ({ ...f, fuelKg: kg }))}
+        />
+      </div>
       {COMPONENT_KEYS.map((key) => (
         <div key={key} className="line-item">
           <span className="line-item-label">
-            {COMPONENTS[key].label} spares
+            Spare parts: {COMPONENTS[key].label.toLowerCase()}
             <span className="line-item-hint">{COMPONENTS[key].spareMassKg} kg each</span>
           </span>
           <Stepper
-            label={`${COMPONENTS[key].label} spares on ${flight.label}`}
+            label={`Spare parts for the ${COMPONENTS[key].label.toLowerCase()} on ${flight.label}`}
             value={flight.spares[key]}
             step={1}
             onChange={(n) => onChange((f) => ({ ...f, spares: { ...f.spares, [key]: n } }))}
@@ -155,14 +172,14 @@ export function CargoManifest({ plan, onChange }: Props) {
     <div className="manifest">
       <div className="manifest-summary">
         <div className="stat-cell">
-          <span className="stat-label">Total launch mass</span>
+          <span className="stat-label">Total weight to launch</span>
           <span className="stat-value">
             {fmt(totalLaunchMassKg(plan))}
             <span className="stat-unit">kg</span>
           </span>
         </div>
         <button type="button" className="btn btn-small" onClick={() => onChange(withFlightAdded)}>
-          + Add flight
+          + Add rocket
         </button>
       </div>
 

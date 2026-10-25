@@ -12,7 +12,7 @@ type Props = {
 export function NutritionNote({ warning, applyBlockedReason, applying, onApply }: Props) {
   return (
     <div className="callout is-caution" role="status">
-      <p className="callout-title">▲ Nutrition</p>
+      <p className="callout-title">▲ Vitamin C</p>
       <p className="callout-text">{warning.sentence}</p>
       {warning.fix && (
         <div className="fix-row">

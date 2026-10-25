@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { comparePlans, massByCategory, type SavedRun } from './compare'
-import { totalLaunchMassKg } from './manifest'
+import { equipmentMassKg, totalLaunchMassKg } from './manifest'
 import { presetById } from './presets'
 import { DEFAULT_RUN_OPTIONS, runMission } from './sim'
 import type { CargoFlight, MissionPlan } from './types'
@@ -24,10 +24,16 @@ describe('massByCategory', () => {
     expect(m.spares).toBeCloseTo(162.6, 6)
   })
 
-  it('adds up to the plan’s total launch mass', () => {
+  it('adds up to the plan’s total launch mass, less the base-building equipment', () => {
     const plan = presetById('draft').plan()
     const m = massByCategory(plan)
-    expect(m.o2 + m.water + m.food + m.spares).toBeCloseTo(totalLaunchMassKg(plan), 6)
+    const equipment = plan.flights.reduce((s, f) => s + equipmentMassKg(f), 0)
+    // Habitat 1,413 kg + 10 kW reactor 1,538.5 kg + rover 210 kg.
+    expect(equipment).toBeCloseTo(1413 + 10_000 / 6.5 + 210, 6)
+    expect(m.o2 + m.water + m.food + m.spares + m.fuel).toBeCloseTo(
+      totalLaunchMassKg(plan) - equipment,
+      6,
+    )
   })
 })
 
@@ -59,7 +65,7 @@ describe('comparePlans', () => {
     expect(c.massKg.spares.delta).toBeCloseTo(138.6, 6)
     expect(c.massKg.water.tone).toBe('same')
     expect(c.massKg.food.tone).toBe('same')
-    expect(c.weakestLink.a).toMatch(/water recycler has no spares left/)
+    expect(c.weakestLink.a).toMatch(/water recycler ran out of spare parts/)
   })
 
   it('reverses cleanly: A vs B is the mirror of B vs A', () => {

@@ -1,5 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
+  ALL_CLEAR_SURVIVAL_RATE,
+  BEST_FIX_MAX_STEPS,
+  bestFix,
   emergencyLaunchDate,
   nutritionWarning,
   missionMonth,
@@ -89,7 +92,7 @@ describe('weakestLink', () => {
       month: 19,
     })
     expect(link.sentence).toBe(
-      'In 31% of runs, water runs out around month 19 because the water recycler has no spares left',
+      'In 31% of missions, water runs out around month 19 because the water recycler ran out of spare parts',
     )
   })
 
@@ -101,15 +104,15 @@ describe('weakestLink', () => {
     ])
     // 700 / 30.4375 = 23.0 → month 23 (day 700 is still inside month 23).
     expect(link.causes[1].sentence).toBe(
-      'In 8% of runs, food runs out around month 23 because too little was shipped',
+      'In 8% of missions, food runs out around month 23 because not enough was sent',
     )
     expect(link.causes[2].sentence).toBe(
-      'In 3% of runs, CO₂ builds up around month 10 because the CO₂ scrubber has no spares left',
+      'In 3% of missions, the air goes bad around month 10 because the air filter ran out of spare parts',
     )
     expect(link.causes.map((c) => c.label)).toEqual([
-      'Water · water recycler out of spares',
-      'Food · not enough shipped',
-      'CO₂ · CO₂ scrubber out of spares',
+      'Water runs out: water recycler has no spare parts',
+      'Food runs out: not enough sent',
+      'Air goes bad: air filter has no spare parts',
     ])
   })
 
@@ -124,13 +127,15 @@ describe('weakestLink', () => {
     ]
     const l = weakestLink(result(10, 0.5, mixed))
     expect(l.sentence).toBe(
-      'In 50% of runs, water runs out around month 4 because the water recycler is down for repair',
+      'In 50% of missions, water runs out around month 4 because the water recycler is still being repaired',
     )
   })
 
   it('reports crew health causes', () => {
     const l = weakestLink(result(10, 0.9, [{ kind: 'crewUnfit', day: 640, crewId: 'c1' }]))
-    expect(l.sentence).toBe('In 10% of runs, a crew member becomes medically unfit around month 22')
+    expect(l.sentence).toBe(
+      'In 10% of missions, a crew member gets too sick to work around month 22',
+    )
   })
 
   it('returns all clear at 99% survival or better', () => {
@@ -144,7 +149,7 @@ describe('weakestLink', () => {
     expect(l).toEqual({
       status: 'allClear',
       survivalRate: 0.995,
-      sentence: 'All clear: the crew survives in 99.5% of runs.',
+      sentence: 'The crew makes it in 99.5% of simulated missions.',
     })
     expect(weakestLink(result(1000, 1, [])).status).toBe('allClear')
   })
@@ -154,7 +159,7 @@ describe('weakestLink', () => {
     if (l.status !== 'atRisk') throw new Error('expected atRisk')
     expect(l.top.key).toBe('water/waterRecycler')
     expect(l.sentence).toMatch(
-      /^In \d+% of runs, water runs out around month \d+ because the water recycler has no spares left$/,
+      /^In \d+% of missions, water runs out around month \d+ because the water recycler ran out of spare parts$/,
     )
   })
 })
@@ -180,9 +185,9 @@ describe('suggestFix', () => {
     if (fix.status !== 'fix') throw new Error(fix.sentence)
     expect(fix.survivalBefore).toBe(draftResult.survivalRate)
     expect(fix.survivalAfter).toBeGreaterThanOrEqual(0.9)
-    expect(fix.description).toMatch(/water recycler spare/)
+    expect(fix.description).toMatch(/spare parts? for the water recycler/)
     expect(fix.sentence).toBe(
-      `${fix.description} → ${Math.round(fix.survivalBefore * 100)}% → ${Math.round(fix.survivalAfter * 100)}%`,
+      `${fix.description}: survival goes from ${Math.round(fix.survivalBefore * 100)}% to ${Math.round(fix.survivalAfter * 100)}%`,
     )
     // Lands before the month-22 failure: the late Jan 2031 spares move to the Dec 2028 window.
     expect(fix.kind).toBe('moveSpares')
@@ -220,7 +225,7 @@ describe('suggestFix', () => {
       if (r.status !== 'fix') throw new Error(r.sentence)
       expect(overCapacityFlights(r.plan)).toEqual([])
       expect(r.swappedOutKg).toBeGreaterThan(0)
-      expect(r.description).toMatch(/swap out [\d ]+ kg of shipped/)
+      expect(r.description).toMatch(/leaving [\d,]+ kg of \w+ behind to make room/)
     },
     SLOW,
   )
@@ -233,7 +238,7 @@ describe('suggestFix', () => {
       const r = suggestFix(lean, runMission(lean, LIGHT))
       if (r.status !== 'fix') throw new Error(r.sentence)
       expect(r.kind).toBe('addConsumables')
-      expect(r.description).toMatch(/^Ship [\d ]+ kg more food on Cargo lander/)
+      expect(r.description).toMatch(/^Send [\d,]+ kg more food on Cargo lander/)
       expect(r.survivalAfter).toBeGreaterThan(r.survivalBefore)
       expect(overCapacityFlights(r.plan)).toEqual([])
     },
@@ -270,7 +275,7 @@ describe('suggestFix', () => {
     const clear: SimResult = { ...draftResult, survivalRate: 1, failures: [] }
     expect(suggestFix(draft, clear)).toEqual({
       status: 'allClear',
-      sentence: 'All clear: the crew survives in 100.0% of runs.',
+      sentence: 'The crew makes it in 100.0% of simulated missions.',
     })
   })
 })
@@ -295,15 +300,15 @@ describe('health and nutrition (GEA-32)', () => {
     )
     if (link.status !== 'atRisk') throw new Error('expected atRisk')
     expect(link.causes.map((c) => c.sentence)).toEqual([
-      'In 20% of runs, bone loss makes a crew member medically unfit around month 22',
-      "In 6% of runs, a crew member's vitamin C falls to scurvy levels around month 22",
-      'In 4% of runs, a crew member loses more than 15% of body mass around month 22',
+      "In 20% of missions, a crew member's bones get too weak to work safely around month 22",
+      'In 6% of missions, a crew member gets scurvy from too little vitamin C around month 22',
+      'In 4% of missions, a crew member loses more than 15% of their body weight around month 22',
     ])
     expect(link.top).toMatchObject({ key: 'crewUnfit/boneLoss', driver: 'boneLoss' })
     expect(link.causes.map((c) => c.label)).toEqual([
-      'Crew · bone loss',
-      'Crew · vitamin C (scurvy)',
-      'Crew · body mass loss',
+      'Crew bones get too weak',
+      'Crew gets scurvy',
+      'Crew loses too much weight',
     ])
   })
 
@@ -313,7 +318,7 @@ describe('health and nutrition (GEA-32)', () => {
       let plan = presetById('revised').plan()
       for (const m of plan.crew) plan = withCrewMemberUpdated(plan, m.id, { exerciseMinPerDay: 30 })
       const before = runMission(plan, LIGHT)
-      expect(weakestLink(before).sentence).toMatch(/bone loss makes a crew member medically unfit/)
+      expect(weakestLink(before).sentence).toMatch(/bones get too weak to work safely/)
       const fix = suggestFix(plan, before)
       if (fix.status !== 'fix') throw new Error(fix.sentence)
       expect(fix.kind).toBe('exercise')
@@ -331,7 +336,7 @@ describe('health and nutrition (GEA-32)', () => {
 
     const w = nutritionWarning(draft)!
     expect(w.sentence).toMatch(
-      /^Vitamin C intake falls below the 100 mg\/day need for .+, first around month \d+: stored food loses/,
+      /^.+ won't get enough vitamin C \(100 mg a day\) from about month \d+\. Stored food loses/,
     )
     expect(w.crewIds.length).toBeGreaterThan(0)
 
@@ -341,7 +346,7 @@ describe('health and nutrition (GEA-32)', () => {
     expect(fix.massDeltaKg).toBeCloseTo(0.72, 9)
     expect(supplementMassKg(fix.plan)).toBeCloseTo(0.72, 9)
     expect(fix.description).toBe(
-      'Add a daily vitamin C tablet for the crew (+0.7 kg on Cargo lander 1)',
+      'Give the crew a daily vitamin C tablet (adds 0.7 kg to Cargo lander 1)',
     )
     expect(overCapacityFlights(fix.plan)).toEqual([])
     expect(nutritionWarning(fix.plan)).toBeUndefined()
@@ -354,7 +359,22 @@ describe('health and nutrition (GEA-32)', () => {
     full.flights[0].consumablesKg.water += (c.capacityKg - c.massKg - 0.1) / 1.1
     expect(overCapacityFlights(full)).toEqual([])
     const w = nutritionWarning(full)
-    expect(w?.sentence).toMatch(/Vitamin C intake falls below/)
+    expect(w?.sentence).toMatch(/won't get enough vitamin C/)
     expect(w?.fix).toBeUndefined()
   })
+})
+
+describe('bestFix', () => {
+  it('goes straight for the highest survival: the draft plan reaches all clear in a few steps', () => {
+    const draft = presetById('draft').plan()
+    const before = runMission(draft)
+    const fix = bestFix(draft, before)
+    if (fix.status !== 'fix') throw new Error(fix.sentence)
+    expect(fix.survivalAfter).toBeGreaterThanOrEqual(ALL_CLEAR_SURVIVAL_RATE)
+    expect(fix.steps!.length).toBeGreaterThan(1)
+    expect(fix.steps!.length).toBeLessThanOrEqual(BEST_FIX_MAX_STEPS)
+    // One click reproduces the promised odds.
+    expect(runMission(fix.plan).survivalRate).toBe(fix.survivalAfter)
+    expect(overCapacityFlights(fix.plan)).toEqual([])
+  }, 120_000)
 })

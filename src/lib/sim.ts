@@ -9,6 +9,7 @@ import {
   GREENHOUSE_FOOD_KG_PER_M2_DAY,
 } from './data'
 import { crewFoodKgPerDay, type CrewProfile } from './crew'
+import { fuelStock } from './fuel'
 import { createNutritionTracker } from './diet'
 import { createHealthTracker } from './health'
 import { daysBetween } from './dates'
@@ -179,6 +180,8 @@ export function runOnce(
     water: new Array<number>(seriesLength),
     food: new Array<number>(seriesLength),
     spares: new Array<number>(seriesLength),
+    // Rover fuel never depends on what fails, so it's the plan's one series (see fuel.ts).
+    fuel: record ? fuelStock(plan) : [],
   }
   let o2 = 0
   let water = 0
@@ -376,8 +379,10 @@ export function runMission(
   if (!Number.isInteger(runs) || runs < 1) throw new RangeError(`runs must be ≥ 1, got ${runs}`)
   const days = plan.durationDays
   const rng = mulberry32(seed)
+  // Fuel is the same in every run, so it skips the per-run sampling (and the 1 s budget stays intact).
+  const sampled = RESOURCE_KEYS.filter((k) => k !== 'fuel')
   const samples = {} as Record<ResourceKey, Float64Array>
-  for (const k of RESOURCE_KEYS) samples[k] = new Float64Array(days * runs)
+  for (const k of sampled) samples[k] = new Float64Array(days * runs)
 
   // Health score samples per crew member, weekly (sparklines don't need daily resolution), filled only
   // when runs report health (full crew profiles).
@@ -395,7 +400,7 @@ export function runMission(
     const result = runOnce(plan, rng, components)
     if (result.failure) failures.push(result.failure)
     else survived++
-    for (const k of RESOURCE_KEYS) {
+    for (const k of sampled) {
       const series = result.stocks[k]
       const out = samples[k]
       for (let day = 0; day < days; day++) out[day * runs + run] = series[day]
@@ -422,7 +427,9 @@ export function runMission(
   }
 
   const bands = {} as Record<ResourceKey, Band>
-  for (const k of RESOURCE_KEYS) bands[k] = percentileBand(samples[k], days, runs)
+  for (const k of sampled) bands[k] = percentileBand(samples[k], days, runs)
+  const fuel = fuelStock(plan)
+  bands.fuel = { p10: fuel, p50: fuel, p90: fuel }
 
   const sim: SimResult = {
     runs,

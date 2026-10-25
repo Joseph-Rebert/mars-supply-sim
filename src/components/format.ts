@@ -2,11 +2,11 @@ import { DESTINATION_PROFILES } from '../lib/data'
 import type { Destination } from '../lib/types'
 import type { Tone } from './StatTile'
 
-/** Console-style thousands separator with a thin space: 10 550. */
+/** Thousands separated with commas: 10,550. */
 export function fmt(n: number): string {
   return Math.round(n)
     .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
 /** Survival thresholds from GEA-27: red below 70%, amber 70–90%, green from 90%. */

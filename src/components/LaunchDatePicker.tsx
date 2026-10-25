@@ -18,6 +18,8 @@ type Props = {
   plan: MissionPlan
   flight: CargoFlight
   onChange: (launchDate: IsoDate) => void
+  /** Show the capacity-by-date chart under the readout (default true). */
+  showChart?: boolean
 }
 
 // Below this payload factor an off-window launch reads red instead of amber.
@@ -114,7 +116,7 @@ function stripOption(
 }
 
 /** Launch date for one cargo flight, with what that date costs: transit, arrival and capacity. */
-export function LaunchDatePicker({ plan, flight, onChange }: Props) {
+export function LaunchDatePicker({ plan, flight, onChange, showChart = true }: Props) {
   const id = useId()
   const { destination } = plan
   const range = launchDateRange(destination)
@@ -160,26 +162,28 @@ export function LaunchDatePicker({ plan, flight, onChange }: Props) {
           disabled={best === launchDate}
           onClick={() => onChange(best)}
         >
-          ★ Snap to best
+          ★ Pick the best date
         </button>
       </div>
 
       <p className={`launch-readout is-${tone}`} aria-live="polite">
-        Launch {launchDate} → arrives {transfer.arrivalDate} ({transfer.transitDays} days) ·
-        capacity {fmt(cap.capacityKg)} kg ({pct}%)
+        Leaves {launchDate}, arrives {transfer.arrivalDate} ({transfer.transitDays} days) · can
+        carry {fmt(cap.capacityKg)} kg ({pct}% of the best date)
         {cap.overCapacity && (
           <>
             {' '}
-            · loaded {fmt(cap.massKg)} kg, over by {fmt(cap.massKg - cap.capacityKg)} kg
+            · packed {fmt(cap.massKg)} kg, {fmt(cap.massKg - cap.capacityKg)} kg too heavy
           </>
         )}
       </p>
 
-      <EChart
-        option={option}
-        height={96}
-        label={`${flight.label}: launch capacity by date, ${pct}% on ${launchDate}`}
-      />
+      {showChart && (
+        <EChart
+          option={option}
+          height={96}
+          label={`${flight.label}: launch capacity by date, ${pct}% on ${launchDate}`}
+        />
+      )}
     </div>
   )
 }

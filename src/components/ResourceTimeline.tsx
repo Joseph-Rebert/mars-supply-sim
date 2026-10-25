@@ -18,8 +18,8 @@ type Props = {
 
 type TooltipParam = { seriesName?: string; value?: unknown; color?: string }
 
-const SPARES_SERIES = 'Spares'
-const DISTANCE_SERIES = 'Earth–Mars'
+const SPARES_SERIES = 'Spare parts'
+const DISTANCE_SERIES = 'Earth to Mars'
 /** Height of the distance strip under the resource chart, px. */
 const STRIP_H = 44
 
@@ -121,14 +121,14 @@ function timelineOption(
           })
         const d = Number(day)
         if (distance && distance[d] !== null)
-          rows.push(`${DISTANCE_SERIES} ${fmt(distance[d]!)} M km`)
+          rows.push(`${DISTANCE_SERIES}: ${fmt(distance[d]!)} million km`)
         const transfer = transferOnDay(plan, d)
         if (transfer && transfer.payloadFactor > 0) {
           rows.push(
-            `Launch today → ${transfer.transitDays} d transit · ${Math.round(transfer.payloadFactor * 100)}% payload`,
+            `A rocket leaving today: ${transfer.transitDays}-day flight, ${Math.round(transfer.payloadFactor * 100)}% of the best load`,
           )
         }
-        return [`D${d} · median`, ...rows].join('<br/>')
+        return [`Day ${d} · typical mission`, ...rows].join('<br/>')
       },
     },
     xAxis: [
@@ -138,7 +138,7 @@ function timelineOption(
         boundaryGap: false,
         axisLine: { lineStyle: { color: rule } },
         axisTick: { show: false },
-        axisLabel: { interval: 149, formatter: (d: string) => `D${d}` },
+        axisLabel: { interval: 149, formatter: (d: string) => `Day ${d}` },
       },
       ...(distance
         ? [
@@ -254,7 +254,7 @@ function timelineOption(
                     itemStyle: { color: muted },
                     label: {
                       position: 'bottom',
-                      formatter: `Closest · ${Math.round(closest.mkm)} M km`,
+                      formatter: `Closest: ${Math.round(closest.mkm)} million km`,
                       color: muted,
                       fontFamily: mono,
                       fontSize: 13,
@@ -301,29 +301,29 @@ export function ResourceTimeline({ result, plan, highlight, height = 270 }: Prop
         ))}
         <span className="legend-item">
           <span className="swatch swatch-spares swatch-dashed" aria-hidden="true" />
-          Spares
+          Spare parts
         </span>
         <span className="legend-item">
           <span className="swatch swatch-marker" aria-hidden="true" />
-          Landing
+          Rocket arrives
         </span>
         {overlays.windows.length > 0 && (
           <span className="legend-item">
             <span className="swatch swatch-window" aria-hidden="true" />
-            Window
+            Launch window
           </span>
         )}
         {overlays.distanceMkm && (
           <span className="legend-item">
             <span className="swatch swatch-distance" aria-hidden="true" />
-            Distance
+            Earth–Mars distance
           </span>
         )}
       </div>
       <EChart
         option={option}
         height={height}
-        label={`Median O₂, water, food and spares stock over ${result.durationDays} days, with P10–P90 bands across ${fmt(result.runs)} runs${highlight ? "; the weakest link's failure month is shaded" : ''}`}
+        label={`Oxygen, water, food and spare parts over ${result.durationDays} days on a typical mission, with the range across ${fmt(result.runs)} simulated missions${highlight ? '; the month things usually go wrong is shaded' : ''}`}
       />
     </>
   )

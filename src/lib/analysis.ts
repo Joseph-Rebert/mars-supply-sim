@@ -21,7 +21,7 @@ import {
 } from './manifest'
 import { DAYS_PER_MONTH } from './plan'
 import { mulberry32 } from './rng'
-import { arrivalDay, dailyRates, quantile, runOnce } from './sim'
+import { arrivalDay, dailyRates, quantile, runMission, runOnce } from './sim'
 import { launchDateRange, transferFor } from './transfers'
 import {
   COMPONENT_KEYS,
@@ -37,21 +37,21 @@ import {
 } from './types'
 
 const RESOURCE_NAME: Record<ConsumableKey, string> = {
-  o2: 'O₂',
+  o2: 'Oxygen',
   water: 'Water',
   food: 'Food',
 }
 
-/** Lower-cases a label mid-sentence ("Water recycler" → "water recycler") but keeps "O₂ generator". */
+/** Lower-cases a label mid-sentence ("Water recycler" → "water recycler") but keeps names like "CO₂". */
 function inSentence(label: string): string {
   return /^[A-Z][a-z]/.test(label) ? label[0].toLowerCase() + label.slice(1) : label
 }
 
 /** Plain-language reasons for 'crewUnfit' drivers (GEA-23). */
 const UNFIT_DRIVER_TEXT: Record<string, string> = {
-  boneLoss: 'bone loss passed twice NASA’s 5% limit',
-  scurvy: 'vitamin C fell to scurvy levels',
-  bodyMass: 'lost more than 15% of body mass',
+  boneLoss: 'their bones weakened to twice NASA’s safe limit',
+  scurvy: 'they got scurvy from too little vitamin C',
+  bodyMass: 'they lost more than 15% of their body weight',
 }
 
 /** One sentence saying what ended a run and why, e.g. for the weakest-link callout. */
@@ -61,16 +61,18 @@ export function describeFailure(cause: FailureCause): string {
       const what = `${RESOURCE_NAME[cause.resource]} ran out on day ${cause.day}`
       if (!cause.offlineComponent) return what
       const component = inSentence(COMPONENTS[cause.offlineComponent].label)
-      const state = cause.awaitingSpare ? 'offline with no spares' : 'offline for repair'
+      const state = cause.awaitingSpare
+        ? 'broken with no spare parts left'
+        : 'broken and still being repaired'
       return `${what} because the ${component} was ${state}`
     }
     case 'systemDown': {
       const component = COMPONENTS[cause.component].label
-      return `${component} offline with no spares for more than ${CO2_SCRUBBER_GRACE_DAYS} days; CO₂ built up on day ${cause.day}`
+      return `${component} broken with no spare parts for more than ${CO2_SCRUBBER_GRACE_DAYS} days, so CO₂ built up on day ${cause.day}`
     }
     case 'crewUnfit': {
       const why = cause.driver ? UNFIT_DRIVER_TEXT[cause.driver] : undefined
-      return `Crew member ${cause.crewId} became medically unfit on day ${cause.day}${why ? `: ${why}` : ''}`
+      return `Crew member ${cause.crewId} got too sick to work on day ${cause.day}${why ? `: ${why}` : ''}`
     }
   }
 }
@@ -127,7 +129,7 @@ export function failureHistogram(failures: readonly FailureCause[]): FailureGrou
 export const ALL_CLEAR_SURVIVAL_RATE = 0.99
 
 const RESOURCE_IN_SENTENCE: Record<ConsumableKey, string> = {
-  o2: 'O₂',
+  o2: 'oxygen',
   water: 'water',
   food: 'food',
 }
@@ -145,9 +147,9 @@ export type WeakestLinkCause = {
   medianDay: number
   /** Mission month of the median failure day; day 0 is month 1. */
   month: number
-  /** Short label for the breakdown list, e.g. "Water · water recycler out of spares". */
+  /** Short label for the breakdown list, e.g. "Water runs out: water recycler has no spare parts". */
   label: string
-  /** The headline, e.g. "In 31% of runs, water runs out around month 19 because …". */
+  /** The headline, e.g. "In 31% of missions, water runs out around month 19 because …". */
   sentence: string
 }
 
@@ -176,48 +178,49 @@ function causeText(
   month: number,
 ): { what: string; label: string } {
   const component = group.component && inSentence(COMPONENTS[group.component].label)
-  const why = awaitingSpare ? 'has no spares left' : 'is down for repair'
+  const why = awaitingSpare ? 'ran out of spare parts' : 'is still being repaired'
+  const short = awaitingSpare ? 'has no spare parts' : 'is still being repaired'
   if (group.resource) {
-    const resource = RESOURCE_IN_SENTENCE[group.resource]
-    const runsOut = `${resource} runs out around month ${month}`
+    const name = RESOURCE_NAME[group.resource]
+    const runsOut = `${RESOURCE_IN_SENTENCE[group.resource]} runs out around month ${month}`
     return component
       ? {
           what: `${runsOut} because the ${component} ${why}`,
-          label: `${RESOURCE_NAME[group.resource]} · ${component} ${awaitingSpare ? 'out of spares' : 'under repair'}`,
+          label: `${name} runs out: ${component} ${short}`,
         }
       : {
-          what: `${runsOut} because too little was shipped`,
-          label: `${RESOURCE_NAME[group.resource]} · not enough shipped`,
+          what: `${runsOut} because not enough was sent`,
+          label: `${name} runs out: not enough sent`,
         }
   }
   if (component) {
     return {
-      what: `CO₂ builds up around month ${month} because the ${component} ${why}`,
-      label: `CO₂ · ${component} out of spares`,
+      what: `the air goes bad around month ${month} because the ${component} ${why}`,
+      label: `Air goes bad: ${component} ${short}`,
     }
   }
   const health = group.driver && UNFIT_SENTENCE[group.driver]
   if (health) return { what: health.what(month), label: health.label }
   return {
-    what: `a crew member becomes medically unfit around month ${month}`,
-    label: 'Crew medically unfit',
+    what: `a crew member gets too sick to work around month ${month}`,
+    label: 'Crew too sick to work',
   }
 }
 
 /** Weakest-link wording per crew-unfit driver (GEA-32). */
 const UNFIT_SENTENCE: Record<string, { what: (month: number) => string; label: string }> = {
   boneLoss: {
-    what: (m) => `bone loss makes a crew member medically unfit around month ${m}`,
-    label: 'Crew · bone loss',
+    what: (m) => `a crew member's bones get too weak to work safely around month ${m}`,
+    label: 'Crew bones get too weak',
   },
   scurvy: {
-    what: (m) => `a crew member's vitamin C falls to scurvy levels around month ${m}`,
-    label: 'Crew · vitamin C (scurvy)',
+    what: (m) => `a crew member gets scurvy from too little vitamin C around month ${m}`,
+    label: 'Crew gets scurvy',
   },
   bodyMass: {
     what: (m) =>
-      `a crew member loses more than ${BODY_MASS_LOSS_UNFIT_PCT}% of body mass around month ${m}`,
-    label: 'Crew · body mass loss',
+      `a crew member loses more than ${BODY_MASS_LOSS_UNFIT_PCT}% of their body weight around month ${m}`,
+    label: 'Crew loses too much weight',
   },
 }
 
@@ -231,7 +234,7 @@ export function weakestLink(result: SimResult): WeakestLink {
     return {
       status: 'allClear',
       survivalRate,
-      sentence: `All clear: the crew survives in ${(survivalRate * 100).toFixed(1)}% of runs.`,
+      sentence: `The crew makes it in ${(survivalRate * 100).toFixed(1)}% of simulated missions.`,
     }
   }
 
@@ -263,7 +266,7 @@ export function weakestLink(result: SimResult): WeakestLink {
         medianDay,
         month,
         label,
-        sentence: `In ${pct(share)} of runs, ${what}`,
+        sentence: `In ${pct(share)} of missions, ${what}`,
       }
     })
 
@@ -308,6 +311,8 @@ export type SuggestedFix =
       massDeltaKg: number
       /** Mass of other cargo removed to make room (kg), 0 if none. */
       swappedOutKg: number
+      /** For a best fix (bestFix): each change, in the order it was found. */
+      steps?: string[]
     }
 
 type Candidate = {
@@ -321,14 +326,14 @@ type Candidate = {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const monthYear = (date: IsoDate) => `${MONTHS[Number(date.slice(5, 7)) - 1]} ${date.slice(0, 4)}`
 
-/** Same thin-space grouping the UI uses: 1 463 kg. */
+/** Same comma grouping the UI uses: 1,463 kg. */
 const kg = (n: number) =>
   `${Math.round(n)
     .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} kg`
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ',')} kg`
 
 function sparesText(component: ComponentKey, n: number): string {
-  return `${n} ${inSentence(COMPONENTS[component].label)} spare${n === 1 ? '' : 's'}`
+  return `${n} spare part${n === 1 ? '' : 's'} for the ${inSentence(COMPONENTS[component].label)}`
 }
 
 /**
@@ -392,7 +397,7 @@ function loadOnto(
 
 function swapText({ swappedOutKg, swapped }: Loaded): string {
   return swapped && swappedOutKg > 0
-    ? `, swap out ${kg(swappedOutKg)} of shipped ${RESOURCE_IN_SENTENCE[swapped]}`
+    ? `, leaving ${kg(swappedOutKg)} of ${RESOURCE_IN_SENTENCE[swapped]} behind to make room`
     : ''
 }
 
@@ -442,7 +447,7 @@ function spareCandidates(
       out.push({
         kind: 'addSpares',
         plan: r.plan,
-        description: `Add ${sparesText(component, n)} to ${target.label} (+${kg(n * spareKg)}${swapText(r)})`,
+        description: `Pack ${sparesText(component, n)} on ${target.label} (adds ${kg(n * spareKg)}${swapText(r)})`,
         addedKg: n * spareKg,
         swappedOutKg: r.swappedOutKg,
       })
@@ -462,11 +467,11 @@ function spareCandidates(
           withSpares(f, component, moved),
         )
         if (!r) continue
-        const more = extra > 0 ? ` and add ${extra} more (+${kg(extra * spareKg)})` : ''
+        const more = extra > 0 ? `, and pack ${extra} more (adds ${kg(extra * spareKg)})` : ''
         out.push({
           kind: 'moveSpares',
           plan: r.plan,
-          description: `Ship the ${sparesText(component, lateCount)} from ${from.label} in the ${monthYear(target.launchDate)} window instead of ${monthYear(from.launchDate)}${more}${swapText(r)}`,
+          description: `Send the ${sparesText(component, lateCount)} on ${target.label} in ${monthYear(target.launchDate)} instead of waiting for ${from.label} in ${monthYear(from.launchDate)}${more}${swapText(r)}`,
           addedKg: extra * spareKg,
           swappedOutKg: r.swappedOutKg,
         })
@@ -480,7 +485,7 @@ function spareCandidates(
   const date = emergencyLaunchDate(plan, failureDay)
   if (!date) return out
   const t = transferFor(plan.destination, date)
-  const penalty = `${t.transitDays}-day transit, only ${Math.round(t.payloadFactor * 100)}% capacity`
+  const penalty = `a ${t.transitDays}-day flight with only ${Math.round(t.payloadFactor * 100)}% of the usual room`
   for (let n = 1; n <= maxAdded; n++) {
     const flight = withSpares(
       emptyFlight(`emergency-${date}`, 'Emergency resupply', date),
@@ -492,7 +497,7 @@ function spareCandidates(
     out.push({
       kind: 'emergencyFlight',
       plan: next,
-      description: `Add an emergency flight launching ${monthYear(date)} (${penalty}) with ${sparesText(component, n)} (+${kg(n * spareKg)})`,
+      description: `Book an extra rocket leaving in ${monthYear(date)} (${penalty}) carrying ${sparesText(component, n)} (adds ${kg(n * spareKg)})`,
       addedKg: n * spareKg,
       swappedOutKg: 0,
     })
@@ -508,7 +513,7 @@ function withVitaminC(plan: MissionPlan): MissionPlan | undefined {
 }
 
 function vitaminCDescription(plan: MissionPlan, next: MissionPlan): string {
-  return `Add a daily vitamin C tablet for the crew (+${supplementMassKg(next).toFixed(1)} kg on ${plan.flights[0].label})`
+  return `Give the crew a daily vitamin C tablet (adds ${supplementMassKg(next).toFixed(1)} kg to ${plan.flights[0].label})`
 }
 
 /** Fixes for a crew member becoming medically unfit, by driver (GEA-32). */
@@ -517,7 +522,7 @@ function healthCandidates(plan: MissionPlan, driver: string, failureDay: number)
     // Exercise is the bone countermeasure; it costs crew time, not launch mass (the gym is in the habitat).
     const short = plan.crew.filter((m) => m.exerciseMinPerDay < EXERCISE_FULL_COUNTERMEASURE_MIN)
     if (short.length === 0) return []
-    const names = short.map((m) => `${m.name} (now ${m.exerciseMinPerDay})`).join(', ')
+    const least = Math.min(...short.map((m) => m.exerciseMinPerDay))
     return [
       {
         kind: 'exercise',
@@ -529,7 +534,7 @@ function healthCandidates(plan: MissionPlan, driver: string, failureDay: number)
               : m,
           ),
         },
-        description: `Raise exercise to ${EXERCISE_FULL_COUNTERMEASURE_MIN} min/day for ${names} (no launch mass)`,
+        description: `Have the crew exercise ${EXERCISE_FULL_COUNTERMEASURE_MIN} minutes a day, up from as little as ${least} (no extra weight to launch)`,
         addedKg: 0,
         swappedOutKg: 0,
       },
@@ -574,7 +579,7 @@ function consumableCandidates(
     out.push({
       kind: 'addConsumables',
       plan: r.plan,
-      description: `Ship ${kg(netKg)} more ${RESOURCE_IN_SENTENCE[resource]} on ${target.label} (+${kg(grossKg)}${swapText(r)})`,
+      description: `Send ${kg(netKg)} more ${RESOURCE_IN_SENTENCE[resource]} on ${target.label} (adds ${kg(grossKg)} with packaging${swapText(r)})`,
       addedKg: grossKg,
       swappedOutKg: r.swappedOutKg,
     })
@@ -605,7 +610,7 @@ export function suggestFix(
         ? healthCandidates(plan, top.driver, top.medianDay)
         : []
   if (candidates.length === 0) {
-    return { status: 'noFix', sentence: `No fix fits the mass limits for: ${top.label}.` }
+    return { status: 'noFix', sentence: `No fix fits on the rockets for: ${top.label}.` }
   }
 
   const netKg = (c: Candidate) => c.addedKg - c.swappedOutKg
@@ -625,7 +630,7 @@ export function suggestFix(
   if (!best) {
     return {
       status: 'noFix',
-      sentence: `None of the fixes tried improved survival for: ${top.label}.`,
+      sentence: `None of the fixes we tried helped with: ${top.label}.`,
     }
   }
 
@@ -636,12 +641,61 @@ export function suggestFix(
     status: 'fix',
     kind: best.c.kind,
     description: best.c.description,
-    sentence: `${best.c.description} → ${pct(before)} → ${pct(after)}`,
+    sentence: `${best.c.description}: survival goes from ${pct(before)} to ${pct(after)}`,
     plan: best.c.plan,
     survivalBefore: before,
     survivalAfter: after,
     massDeltaKg: totalLaunchMassKg(best.c.plan) - totalLaunchMassKg(plan),
     swappedOutKg: best.c.swappedOutKg,
+  }
+}
+
+// ---------- Best fix: straight to the highest survival ----------
+
+/** Most fixes chained into one best fix; each one fixes the next weakest link. */
+export const BEST_FIX_MAX_STEPS = 4
+
+/**
+ * The fix that gets survival as high as it will go, in one click: fix the weakest link aiming for
+ * all-clear (heaviest fix that helps most, not the lightest that clears 90%), rerun, fix the next weakest
+ * link, and so on until all clear or nothing more helps. Takes several seconds; the UI runs it off the
+ * main thread. Returns the same shape as suggestFix, with `steps` listing each change.
+ */
+export function bestFix(
+  plan: MissionPlan,
+  result: SimResult,
+  options: FixOptions = DEFAULT_FIX_OPTIONS,
+): SuggestedFix {
+  const aim = { ...options, targetSurvival: ALL_CLEAR_SURVIVAL_RATE }
+  let current = plan
+  let currentResult = result
+  const steps: string[] = []
+  let kind: FixKind | undefined
+  let swappedOutKg = 0
+  for (let i = 0; i < BEST_FIX_MAX_STEPS; i++) {
+    const fix = suggestFix(current, currentResult, aim)
+    if (fix.status !== 'fix' || fix.survivalAfter <= currentResult.survivalRate) break
+    steps.push(fix.description)
+    kind ??= fix.kind
+    swappedOutKg += fix.swappedOutKg
+    current = fix.plan
+    currentResult = runMission(current, { runs: result.runs, seed: result.seed })
+    if (currentResult.survivalRate >= ALL_CLEAR_SURVIVAL_RATE) break
+  }
+  if (!kind) return suggestFix(plan, result, options)
+  const before = result.survivalRate
+  const after = currentResult.survivalRate
+  return {
+    status: 'fix',
+    kind,
+    description: steps.join('. '),
+    sentence: `${steps.join('. ')}: survival goes from ${pct(before)} to ${pct(after)}`,
+    plan: current,
+    survivalBefore: before,
+    survivalAfter: after,
+    massDeltaKg: totalLaunchMassKg(current) - totalLaunchMassKg(plan),
+    swappedOutKg,
+    steps,
   }
 }
 
@@ -679,10 +733,9 @@ export function nutritionWarning(plan: MissionPlan): NutritionWarning | undefine
   const short = vitaminCShortfall(plan)
   if (!short) return undefined
   const firstShortDay = Math.min(...short.map((s) => s.day))
-  const names = short.map((s) => s.m.name)
-  const who = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0]
+  const who = short.length === plan.crew.length ? 'The crew' : `${short.length} of the crew`
   const warning: NutritionWarning = {
-    sentence: `Vitamin C intake falls below the ${VITAMIN_C_MG_PER_DAY} mg/day need for ${who}, first around month ${missionMonth(firstShortDay)}: stored food loses about a quarter of its vitamin C a year`,
+    sentence: `${who} won't get enough vitamin C (${VITAMIN_C_MG_PER_DAY} mg a day) from about month ${missionMonth(firstShortDay)}. Stored food loses about a quarter of its vitamin C each year`,
     firstShortDay,
     crewIds: short.map((s) => s.m.id),
   }
