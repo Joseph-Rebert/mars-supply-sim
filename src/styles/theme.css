@@ -1613,7 +1613,9 @@ p {
 
 /* Full-width sliders are hard to use; the setup form keeps a comfortable measure. */
 .setup-panel > .setup-form {
+  width: 100%;
   max-width: 720px;
+  margin-inline: auto;
 }
 
 @media (max-width: 720px) {
