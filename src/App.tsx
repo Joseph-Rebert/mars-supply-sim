@@ -268,10 +268,6 @@ function App() {
           <h2 id="costs-title" className="sc-h2">
             Cost breakdown
           </h2>
-          <p className="sc-muted">
-            Each rocket costs $178M however full it is, so its price is split across what it carries
-            by the room each thing takes. Equipment adds what it costs to buy.
-          </p>
           <SupplyCostTable plan={plan} />
         </section>
 
