@@ -162,7 +162,7 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1 className="app-title">Ares Supply</h1>
+        <h1 className="app-title">Res-Supply Chain</h1>
         <MissionPicker
           value={selection}
           saved={missions}

@@ -4,7 +4,7 @@ Instructions for Claude Code working in this repo. Read this file in full before
 
 ## What we're building
 
-**Ares Supply: Mission Survival Planner.** A hackathon project (Geaux Hack) that treats off-Earth life support as a supply chain. It is a **mission-planning decision tool, not a game.**
+**Res-Supply Chain: Mission Survival Planner.** A hackathon project (Geaux Hack) that treats off-Earth life support as a supply chain. It is a **mission-planning decision tool, not a game.**
 
 It answers one question: **"Will this crew survive, and what should we change so they do?"**
 
