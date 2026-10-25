@@ -12,7 +12,35 @@ import { cssVar } from './themeColors'
 // Mars aphelion is 1.666 AU; leave room outside it for labels.
 const VIEW_RADIUS_KM = 1.82 * AU_KM
 const PLAY_DAYS_PER_SECOND = 45
+// Header, Fix button, section title and stats strip: the space the view leaves for the rest.
+const FIT_HEIGHT_RESERVED_PX = 280
 const ORBITS = orbitPaths()
+// Ships closer than this on screen share one label.
+const SHIP_GROUP_PX = 14
+
+type Ship = { p: Vec3; name: string; dim: boolean }
+
+/** Ships drawn on top of each other get one label: "Cargo lander 1 & 2" rather than two. */
+function groupShips(ships: Ship[], kmToPx: number) {
+  const groups: Ship[][] = []
+  for (const s of ships) {
+    const near = groups.find(
+      (g) => Math.hypot(g[0].p[0] - s.p[0], g[0].p[1] - s.p[1]) * kmToPx < SHIP_GROUP_PX,
+    )
+    if (near) near.push(s)
+    else groups.push([s])
+  }
+  return groups.map((g) => ({ ships: g, dim: g.every((s) => s.dim), text: groupLabel(g) }))
+}
+
+function groupLabel(ships: Ship[]) {
+  if (ships.length === 1) return ships[0].name
+  const words = ships.map((s) => s.name.split(' '))
+  const head = words[0].slice(0, -1).join(' ')
+  const sameHead = words.every((w) => w.slice(0, -1).join(' ') === head)
+  const names = sameHead ? words.map((w) => w[w.length - 1]) : ships.map((s) => s.name)
+  return `${sameHead ? `${head} ` : ''}${names.join(' & ')}`
+}
 
 type Props = {
   /** The plan that produced `rows`. */
@@ -78,12 +106,21 @@ export function OrbitView({ plan, rows }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState(520)
   useEffect(() => {
-    if (!box.current) return
-    const ro = new ResizeObserver(([e]) =>
-      setSize(Math.min(600, Math.max(260, e.contentRect.width))),
-    )
-    ro.observe(box.current)
-    return () => ro.disconnect()
+    const el = box.current
+    if (!el) return
+    // Fit the width, and the screen height too, so the whole view shows above the stats strip.
+    const fit = () =>
+      setSize(
+        Math.min(600, window.innerHeight - FIT_HEIGHT_RESERVED_PX, Math.max(260, el.clientWidth)),
+      )
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    window.addEventListener('resize', fit)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', fit)
+    }
   }, [])
 
   useEffect(() => {
@@ -99,33 +136,38 @@ export function OrbitView({ plan, rows }: Props) {
     const k = c / VIEW_RADIUS_KM
     const px = (r: Vec3): [number, number] => [c + r[0] * k, c - r[1] * k]
     const color = {
-      grid: cssVar('--chart-grid'),
-      rule: cssVar('--rule-strong'),
+      bg: cssVar('--bg'),
+      text: cssVar('--text'),
       muted: cssVar('--text-muted'),
-      accent: cssVar('--accent'),
+      path: cssVar('--rule-strong'),
+      ship: cssVar('--accent'),
+      landed: cssVar('--nominal'),
       sun: cssVar('--sun'),
       earth: cssVar('--planet-earth'),
       mars: cssVar('--planet-mars'),
-      landed: cssVar('--nominal'),
     }
-    const mono = cssVar('--mono')
+    const sans = cssVar('--sans')
 
     const path = (pts: Vec3[], close = false) => {
       ctx.beginPath()
       pts.forEach((p, i) => (i === 0 ? ctx.moveTo(...px(p)) : ctx.lineTo(...px(p))))
       if (close) ctx.closePath()
     }
+    // A ring in the page color lifts each body off the orbit lines behind it.
     const dotAt = (r: Vec3, radius: number, fill: string) => {
       ctx.beginPath()
       ctx.arc(...px(r), radius, 0, Math.PI * 2)
       ctx.fillStyle = fill
       ctx.fill()
+      ctx.lineWidth = 2
+      ctx.strokeStyle = color.bg
+      ctx.stroke()
     }
     // Each label tries a few spots around its point and takes the first that misses those drawn.
     const taken: Box[] = []
     const label = (r: Vec3, text: string, fill: string) => {
       const [x, y] = px(r)
-      ctx.font = `12px ${mono}`
+      ctx.font = `500 12px ${sans}`
       const w = ctx.measureText(text).width
       const h = 14
       const at = (dx: number, dy: number): Box => ({
@@ -136,31 +178,24 @@ export function OrbitView({ plan, rows }: Props) {
       })
       const free = (b: Box) =>
         taken.every((t) => b.x + b.w < t.x || t.x + t.w < b.x || b.y + b.h < t.y || t.y + t.h < b.y)
-      // Right then left of the point, rows moving outward from it; crowded spots (two ships
-      // beside Earth) fall through to rows further out instead of overlapping.
+      // Right then left of the point, rows moving outward from it, so labels don't overlap.
       const rows = [-8, 18, -24, 34, -40, 50, -56, 66]
       const spots = rows.flatMap((dy) => [
-        [10, dy],
-        [-w - 10, dy],
+        [12, dy],
+        [-w - 12, dy],
       ])
-      const pick = spots.map(([dx, dy]) => at(dx, dy)).find(free) ?? at(10, -8)
+      const pick = spots.map(([dx, dy]) => at(dx, dy)).find(free) ?? at(12, -8)
       taken.push(pick)
+      // A halo in the page color keeps the text readable where it crosses an orbit or a path.
+      ctx.lineWidth = 3
+      ctx.strokeStyle = color.bg
+      ctx.strokeText(text, pick.x, pick.y + h - 3)
       ctx.fillStyle = fill
       ctx.fillText(text, pick.x, pick.y + h - 3)
     }
 
-    ctx.strokeStyle = color.grid
-    ctx.lineWidth = 1
-    for (const au of [1, 1.5]) {
-      ctx.beginPath()
-      ctx.arc(c, c, au * AU_KM * k, 0, Math.PI * 2)
-      ctx.stroke()
-    }
-    ctx.font = `11px ${mono}`
-    ctx.fillStyle = color.muted
-
-    ctx.lineWidth = 1.5
-    ctx.globalAlpha = 0.45
+    ctx.lineWidth = 1.25
+    ctx.globalAlpha = 0.5
     ctx.strokeStyle = color.earth
     path(ORBITS.earth, true)
     ctx.stroke()
@@ -169,28 +204,28 @@ export function OrbitView({ plan, rows }: Props) {
     ctx.stroke()
     ctx.globalAlpha = 1
 
-    // Paths: dashed ahead of the cargo, amber where it has flown, green once it has landed.
-    const ships: { p: Vec3; text: string; dim: boolean }[] = []
+    // Paths: dashed ahead of the cargo, bright where it has flown, green once it has landed.
+    const ships: Ship[] = []
     for (const { row, arc } of arcs) {
       const since = daysBetween(arc.launchDate, date) + (day - whole)
       const dim = focus !== null && focus !== row.flight.id
       ctx.globalAlpha = dim ? 0.2 : 1
-      ctx.setLineDash([4, 5])
-      ctx.strokeStyle = color.rule
-      ctx.lineWidth = 1.5
+      ctx.setLineDash([3, 5])
+      ctx.strokeStyle = color.path
+      ctx.lineWidth = 1.25
       path(arc.points)
       ctx.stroke()
       ctx.setLineDash([])
       if (since > 0) {
         const done = Math.min(1, since / arc.transitDays)
         const n = Math.max(2, Math.round(done * (arc.points.length - 1)) + 1)
-        ctx.strokeStyle = since >= arc.transitDays ? color.landed : color.accent
+        ctx.strokeStyle = since >= arc.transitDays ? color.landed : color.ship
         ctx.lineWidth = 2.5
         path(arc.points.slice(0, n))
         ctx.stroke()
       }
       if (since > 0 && since < arc.transitDays) {
-        ships.push({ p: arc.positionAt(since), text: row.flight.label, dim })
+        ships.push({ p: arc.positionAt(since), name: row.flight.label, dim })
       }
       ctx.globalAlpha = 1
     }
@@ -209,12 +244,40 @@ export function OrbitView({ plan, rows }: Props) {
     dotAt(eph.mars.r, 6, color.mars)
     label(eph.earth.r, 'Earth', color.earth)
     label(eph.mars.r, 'Mars', color.mars)
-    for (const s of ships) {
-      ctx.globalAlpha = s.dim ? 0.2 : 1
-      dotAt(s.p, 5, color.accent)
-      label(s.p, s.text, color.accent)
+    const mid: Vec3 = [
+      (eph.earth.r[0] + eph.mars.r[0]) / 2,
+      (eph.earth.r[1] + eph.mars.r[1]) / 2,
+      0,
+    ]
+    label(mid, `${fmt(eph.distanceKm / 1e6)}M km`, color.muted)
+    for (const group of groupShips(ships, k)) {
+      ctx.globalAlpha = group.dim ? 0.2 : 1
+      for (const s of group.ships) {
+        dotAt(s.p, 4.5, color.ship)
+      }
+      label(group.ships[0].p, group.text, color.text)
       ctx.globalAlpha = 1
     }
+
+    const key: [string, string, number[]][] = [
+      ['In flight', color.ship, []],
+      ['Landed', color.landed, []],
+      ['Planned path', color.path, [3, 5]],
+    ]
+    ctx.font = `12px ${sans}`
+    key.forEach(([text, stroke, dash], i) => {
+      const y = size - 16 - (key.length - 1 - i) * 18
+      ctx.setLineDash(dash)
+      ctx.strokeStyle = stroke
+      ctx.lineWidth = 2.5
+      ctx.beginPath()
+      ctx.moveTo(14, y)
+      ctx.lineTo(34, y)
+      ctx.stroke()
+      ctx.fillStyle = color.muted
+      ctx.fillText(text, 42, y + 4)
+    })
+    ctx.setLineDash([])
   }, [arcs, date, day, whole, eph, size, focus])
 
   if (arcs.length === 0) {

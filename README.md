@@ -1,4 +1,4 @@
-# Ares Supply: Mission Survival Planner
+# Res-Supply Chain: Mission Survival Planner
 
 > Will this crew survive, and what should we change so they do?
 

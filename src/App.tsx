@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AssumptionsDrawer } from './components/AssumptionsDrawer'
 import { fmt } from './components/format'
+import { MissionSetupForm } from './components/MissionSetupForm'
 import { MissionPicker, type MissionSelection, type SavedMission } from './components/MissionPicker'
 import { OrbitView } from './components/OrbitView'
 import { PlanMissionWizard } from './components/PlanMissionWizard'
 import { ShipmentsView } from './components/ShipmentsView'
+import { StatsStrip } from './components/StatsStrip'
 import { SupplyCostTable } from './components/SupplyCostTable'
 import { SupplyOverview } from './components/SupplyOverview'
 import type { FixState } from './components/WeakestLinkCallout'
@@ -14,22 +16,12 @@ import { runBlockedReason } from './lib/launchDates'
 import { withBaseCargo } from './lib/manifest'
 import { presetById, type PresetId } from './lib/presets'
 import { DEFAULT_RUN_OPTIONS, runMission } from './lib/sim'
-import {
-  costSummary,
-  equipmentExceptions,
-  fuelExceptions,
-  orderSchedule,
-  overweightExceptions,
-  pipeline,
-  SAFETY_STOCK_DAYS_DEFAULT,
-  supplyExceptions,
-  type ExceptionTarget,
-} from './lib/supplyChain'
+import { orderSchedule, pipeline, SAFETY_STOCK_DAYS_DEFAULT } from './lib/supplyChain'
 import { launchWindows, transferFor } from './lib/transfers'
-import type { MissionPlan, ResourceKey, SimResult } from './lib/types'
+import type { MissionPlan, SimResult } from './lib/types'
 
-// One page: the verdict and its fix, the key numbers, what runs out, and what's being shipped, with
-// costs and the journey one click down. A new mission comes from the Set up mission wizard.
+// One page: the best fix, the trip, and the supplies over time, then shipments, costs and setup
+// further down, with the key numbers in a strip along the bottom. A new mission comes from the wizard.
 // App state: the plan being edited, and the last run (with the plan that produced it, so the results
 // never silently describe a different plan). The best fix is searched in a worker after each run.
 
@@ -67,7 +59,6 @@ function App() {
   const [leadDays, setLeadDays] = useState(ORDER_LEAD_TIME_DAYS)
   const [safetyDays, setSafetyDays] = useState(SAFETY_STOCK_DAYS_DEFAULT)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [markedRocket, setMarkedRocket] = useState<string | null>(null)
   const blockedReason = useMemo(() => runBlockedReason(plan), [plan])
   const stale = run.plan !== plan
 
@@ -95,40 +86,17 @@ function App() {
   const fixState: FixState = fix?.for === run ? fix.state : 'searching'
 
   const supply = useMemo(() => {
-    const { plan: p, result: r, link } = run
+    const { plan: p, result: r } = run
     const rows = pipeline(p, leadDays)
     const slots = orderSchedule(p, r, leadDays, safetyDays).filter((s) => s.status !== 'afterEnd')
     return {
       rows,
       slots,
-      exceptions: supplyExceptions(link, slots, rows),
-      cost: costSummary(p, rows),
       hasWindows: launchWindows(p.destination).length > 0,
       transitDays: transferFor(p.destination, p.startDate).transitDays,
     }
   }, [run, leadDays, safetyDays])
 
-  // Overweight rockets, equipment and fuel problems come off the plan being edited: no rerun needed to
-  // see them, and an overweight plan can't be rerun until it's fixed. Worst first, then the run's own.
-  const exceptions = useMemo(() => {
-    const now = [
-      ...overweightExceptions(plan),
-      ...equipmentExceptions(plan),
-      ...fuelExceptions(plan),
-    ]
-    const rank = { critical: 0, warning: 1 }
-    return [...now, ...supply.exceptions].sort((a, b) => rank[a.severity] - rank[b.severity])
-  }, [plan, supply.exceptions])
-  const linked = supply.exceptions.find((e) => e.target.tab === 'stock')?.target
-  const linkedResource: ResourceKey = linked?.tab === 'stock' ? linked.resource : 'water'
-
-  // A problem jumps to where it shows: its rocket in the shipments list, or the supply charts.
-  const goTo = (target: ExceptionTarget) => {
-    if (target.tab === 'orders') setMarkedRocket(target.launchDate ?? null)
-    if (target.tab === 'setup') setWizardOpen(true)
-    const id = target.tab === 'orders' ? 'shipments' : target.tab === 'stock' ? 'supplies' : null
-    if (id) document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
 
   /** Runs `next` and shows it, or keeps the last run and reports why this one failed. */
@@ -152,7 +120,6 @@ function App() {
     setPlan(next)
     tryRun(next)
     setSelection(selected)
-    setMarkedRocket(null)
     setFixedFrom(null)
   }
 
@@ -193,9 +160,9 @@ function App() {
     : undefined
 
   return (
-    <div className="app is-single">
+    <div className="app">
       <header className="app-header">
-        <h1 className="app-title">Ares Supply</h1>
+        <h1 className="app-title">Res-Supply Chain</h1>
         <MissionPicker
           value={selection}
           saved={missions}
@@ -228,7 +195,7 @@ function App() {
           aria-haspopup="dialog"
           onClick={() => setWizardOpen(true)}
         >
-          Set up mission
+          Start new mission
         </button>
         <button
           type="button"
@@ -256,10 +223,25 @@ function App() {
           applying={applying}
           onApplyFix={applyFix}
           rows={supply.rows}
-          cost={supply.cost}
-          exceptions={exceptions}
-          onException={goTo}
-          resource={linkedResource}
+          trip={
+            <section id="trip" className="sc-trip" aria-labelledby="trip-title">
+              <h2 id="trip-title" className="sc-h2">
+                Trip
+              </h2>
+              {supply.hasWindows ? (
+                <OrbitView
+                  key={`${run.plan.startDate}|${run.plan.flights.map((f) => f.launchDate).join()}`}
+                  plan={run.plan}
+                  rows={supply.rows}
+                />
+              ) : (
+                <p className="sc-muted">
+                  Rockets reach the Moon in {supply.transitDays} days and can leave any day, so
+                  there's no long trip to show.
+                </p>
+              )}
+            </section>
+          }
         />
         {fixedFrom && (
           <p className="sc-fixed">
@@ -270,43 +252,32 @@ function App() {
 
         <section id="shipments" className="sc-page-section" aria-labelledby="shipments-title">
           <h2 id="shipments-title" className="sc-h2">
-            What's being shipped
+            Shipments
           </h2>
-          <ShipmentsView
-            plan={plan}
-            runSlots={supply.slots}
-            leadDays={leadDays}
-            highlight={markedRocket}
-            onChange={editPlan}
-          />
+          <ShipmentsView plan={plan} runSlots={supply.slots} onChange={editPlan} />
         </section>
 
-        <section className="sc-page-section">
-          <details className="sc-more">
-            <summary>What it costs</summary>
-            <p className="sc-muted">
-              Each rocket costs $178M however full it is, so its price is split across what it
-              carries by the room each thing takes. Equipment adds what it costs to buy.
-            </p>
-            <SupplyCostTable plan={plan} />
-          </details>
-          <details className="sc-more">
-            <summary>The journey to Mars</summary>
-            {supply.hasWindows ? (
-              <OrbitView
-                key={`${run.plan.startDate}|${run.plan.flights.map((f) => f.launchDate).join()}`}
-                plan={run.plan}
-                rows={supply.rows}
-              />
-            ) : (
-              <p className="sc-muted">
-                Rockets reach the Moon in {supply.transitDays} days and can leave any day, so
-                there's no long trip to show.
-              </p>
-            )}
-          </details>
+        <section id="costs" className="sc-page-section" aria-labelledby="costs-title">
+          <h2 id="costs-title" className="sc-h2">
+            Cost breakdown
+          </h2>
+          <SupplyCostTable plan={plan} />
+        </section>
+
+        <section id="setup" className="sc-page-section setup-panel" aria-labelledby="setup-title">
+          <h2 id="setup-title" className="sc-h2">
+            Mission setup
+          </h2>
+          <MissionSetupForm
+            plan={plan}
+            onChange={editPlan}
+            onRun={() => tryRun(plan)}
+            runBlockedReason={blockedReason}
+          />
         </section>
       </main>
+
+      <StatsStrip result={run.result} plan={run.plan} />
 
       {wizardOpen && (
         <PlanMissionWizard

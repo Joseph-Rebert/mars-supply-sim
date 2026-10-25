@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { missionMonth } from '../lib/analysis'
 import { EQUIPMENT } from '../lib/data'
-import { addDays, daysBetween } from '../lib/dates'
+import { daysBetween } from '../lib/dates'
 import { clampLaunchDate, withFlightLaunchDate } from '../lib/launchDates'
 import {
   flightCapacity,
@@ -10,39 +10,27 @@ import {
   withFlightAdded,
   withFlightRemoved,
   withFlightUpdated,
-  type CargoGroup,
   type CargoLine,
 } from '../lib/manifest'
 import type { OrderSlot, OrderSlotStatus } from '../lib/supplyChain'
 import { monthLabel } from '../lib/timeline'
-import { CONSUMABLE_KEYS, EQUIPMENT_KEYS, type CargoFlight, type MissionPlan } from '../lib/types'
+import { EQUIPMENT_KEYS, type CargoFlight, type MissionPlan } from '../lib/types'
 import { FlightItems, MassBar } from './CargoManifest'
 import { LaunchDatePicker } from './LaunchDatePicker'
 
-/** What the arrival means, after the date: one plain sentence per status. */
-const ARRIVAL_NOTE: Partial<Record<OrderSlotStatus, { text: string; tone: string }>> = {
-  ok: { text: 'In time.', tone: 'nominal' },
-  thin: { text: 'Cutting it close: supplies dip below the safety buffer first.', tone: 'caution' },
+/** A short tag when the arrival is a problem; the full reason shows on hover. */
+const ARRIVAL_NOTE: Partial<Record<OrderSlotStatus, { tag: string; why: string; tone: string }>> = {
+  thin: {
+    tag: 'Cutting it close',
+    why: 'Supplies dip below the safety buffer before it lands.',
+    tone: 'caution',
+  },
   late: {
-    text: 'Too late: in unlucky missions, supplies run out before it lands.',
+    tag: 'Lands too late',
+    why: 'In unlucky missions, supplies run out before it lands.',
     tone: 'critical',
   },
 }
-
-const GROUP_LABEL: Record<CargoGroup, string> = {
-  water: 'Water',
-  food: 'Food',
-  o2: 'Oxygen',
-  spares: 'Spare parts',
-  fuel: 'Rover fuel',
-  equipment: 'Equipment',
-}
-
-/** "Power plant (10 kW reactor)" → "power plant (10 kW reactor)": only the first letter drops. */
-const lowerFirst = (s: string) => s[0].toLowerCase() + s.slice(1)
-/** ["a", "b", "c"] → "a, b and c". */
-const listText = (xs: string[]) =>
-  xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`
 
 const kg = (n: number) => `${Math.round(n).toLocaleString('en-US')} kg`
 const tonnes = (n: number) => `${(n / 1000).toFixed(1)} t`
@@ -52,9 +40,6 @@ type Props = {
   plan: MissionPlan
   /** The last run's order slots: in-time verdicts (which need the sim) and unused launch windows. */
   runSlots: OrderSlot[]
-  leadDays: number
-  /** Launch date of the rocket to mark (from a problem on the overview), if any. */
-  highlight: string | null
   onChange: (update: (plan: MissionPlan) => MissionPlan) => void
 }
 
@@ -65,10 +50,10 @@ function nextFlightId(flights: readonly CargoFlight[]): string {
 }
 
 /**
- * What's being shipped, as a manifest: one card per rocket listing exactly what's on it, a bar showing
- * what takes up the room, and one sentence on when it lands and whether that's in time.
+ * What's being shipped: one card per rocket with its dates, a bar showing what takes up the room,
+ * what's on it, and a short tag when it lands too late or is too heavy.
  */
-export function ShipmentsView({ plan, runSlots, leadDays, highlight, onChange }: Props) {
+export function ShipmentsView({ plan, runSlots, onChange }: Props) {
   const [open, setOpen] = useState<string | null>(null)
 
   const flights = [...plan.flights].sort((a, b) => a.launchDate.localeCompare(b.launchDate))
@@ -82,7 +67,6 @@ export function ShipmentsView({ plan, runSlots, leadDays, highlight, onChange }:
 
   return (
     <div className="sc-ship">
-      <TotalLine plan={plan} />
       <div className="sc-ship-cards">
         {flights.map((f) => (
           <RocketCard
@@ -94,12 +78,10 @@ export function ShipmentsView({ plan, runSlots, leadDays, highlight, onChange }:
                 s.flights.some((x) => x.id === f.id && x.launchDate === f.launchDate),
               )?.status
             }
-            leadDays={leadDays}
             open={open === f.id}
             onToggle={() => setOpen(open === f.id ? null : f.id)}
             onChange={onChange}
             onRemoved={() => setOpen(null)}
-            marked={highlight === f.launchDate}
           />
         ))}
         {openWindows.map((s) => (
@@ -137,80 +119,50 @@ export function ShipmentsView({ plan, runSlots, leadDays, highlight, onChange }:
   )
 }
 
-/** One sentence totalling everything being sent, in amounts the crew gets. */
-function TotalLine({ plan }: { plan: MissionPlan }) {
-  const total = (pick: (f: CargoFlight) => number) => plan.flights.reduce((s, f) => s + pick(f), 0)
-  const supplies = CONSUMABLE_KEYS.map((r) => ({ r, kg: total((f) => f.consumablesKg[r]) }))
-    .filter((x) => x.kg > 0)
-    .sort((a, b) => b.kg - a.kg)
-    .map((x) => `${kg(x.kg)} of ${GROUP_LABEL[x.r].toLowerCase()}`)
-  const fuel = total((f) => f.fuelKg ?? 0)
-  if (fuel > 0) supplies.push(`${kg(fuel)} of rover fuel`)
-  const parts = total((f) => Object.values(f.spares).reduce((a, b) => a + b, 0))
-  const equipment = EQUIPMENT_KEYS.filter((k) => plan.flights.some((f) => f.equipment?.includes(k)))
-  const items = [
-    ...supplies,
-    parts > 0 ? `${parts} spare parts` : '',
-    equipment.length ? `the ${listText(equipment.map((k) => lowerFirst(EQUIPMENT[k].label)))}` : '',
-  ].filter(Boolean)
-  const last = items.pop()
-  return (
-    <p className="sc-ship-total">
-      {plan.flights.length} rockets send {items.join(', ')}
-      {items.length ? ' and ' : ''}
-      {last}.
-    </p>
-  )
-}
-
 function RocketCard(props: {
   plan: MissionPlan
   flight: CargoFlight
   status?: OrderSlotStatus
-  leadDays: number
   open: boolean
   onToggle: () => void
   onChange: (update: (plan: MissionPlan) => MissionPlan) => void
   onRemoved: () => void
-  /** Highlighted because a problem on the overview pointed here. */
-  marked: boolean
 }) {
-  const { plan, flight, status, leadDays, marked } = props
-  const card = useRef<HTMLElement>(null)
-  useEffect(() => {
-    if (marked) card.current?.scrollIntoView({ block: 'center' })
-  }, [marked])
+  const { plan, flight, status } = props
   const launchDate = clampLaunchDate(plan.destination, flight.launchDate)
   const cap = flightCapacity(plan, { ...flight, launchDate })
   const arrivalDay = daysBetween(plan.startDate, cap.transfer.arrivalDate)
   const lines = flightContents(flight)
   const note = cap.overCapacity
     ? {
-        text: `Too heavy: ${kg(cap.massKg - cap.capacityKg)} more than it can carry on this date.`,
+        tag: 'Too heavy',
+        why: `${kg(cap.massKg - cap.capacityKg)} more than it can carry on this date.`,
         tone: 'critical',
       }
     : status
       ? ARRIVAL_NOTE[status]
       : undefined
   return (
-    <article
-      ref={card}
-      className={props.marked ? 'sc-rocket is-marked' : 'sc-rocket'}
-      aria-label={flight.label}
-    >
+    <article className="sc-rocket" aria-label={flight.label}>
       <div className="sc-rocket-head">
         <h3 className="sc-rocket-name">{flight.label}</h3>
-        <span className="sc-rocket-full num">
-          {Math.round((cap.massKg / cap.capacityKg) * 100)}% full · {tonnes(cap.massKg)} of{' '}
-          {tonnes(cap.capacityKg)}
+        <span
+          className="sc-rocket-full num"
+          title={`${tonnes(cap.massKg)} of ${tonnes(cap.capacityKg)}`}
+        >
+          {Math.round((cap.massKg / cap.capacityKg) * 100)}% full
         </span>
       </div>
       <p className="sc-rocket-when">
-        Leaves {monthLabel(launchDate)}, lands {monthLabel(cap.transfer.arrivalDate)}
-        {arrivalDay <= 0
-          ? ', before the crew arrives.'
-          : ` (month ${missionMonth(arrivalDay)} of the mission).`}{' '}
-        {note && <span className={`tone-${note.tone} sc-rocket-note`}>{note.text}</span>}
+        <span className="num">
+          {monthLabel(launchDate)} → {monthLabel(cap.transfer.arrivalDate)}
+        </span>
+        {arrivalDay > 0 && <span> · month {missionMonth(arrivalDay)}</span>}
+        {note && (
+          <span className={`sc-tag tone-${note.tone}`} title={note.why}>
+            {note.tag}
+          </span>
+        )}
       </p>
 
       <RoomBar lines={lines} capacityKg={cap.capacityKg} label={flight.label} />
@@ -220,12 +172,9 @@ function RocketCard(props: {
       ) : (
         <ul className="sc-manifest">
           {lines.map((l) => (
-            <li key={l.label}>
+            <li key={l.label} title={l.detail}>
               <span className={`sc-swatch is-${l.group}`} aria-hidden="true" />
-              <span className="sc-manifest-label">
-                {l.label}
-                {l.detail && <span className="sc-caption"> ({l.detail})</span>}
-              </span>
+              <span className="sc-manifest-label">{l.label}</span>
               <span className="num sc-manifest-amount">{l.amount}</span>
             </li>
           ))}
@@ -233,9 +182,6 @@ function RocketCard(props: {
       )}
 
       <div className="sc-rocket-foot">
-        <span className="sc-caption">
-          Order the cargo by {monthLabel(addDays(launchDate, -leadDays))}
-        </span>
         <button
           type="button"
           className="sc-link"

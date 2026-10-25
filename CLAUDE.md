@@ -4,7 +4,7 @@ Instructions for Claude Code working in this repo. Read this file in full before
 
 ## What we're building
 
-**Ares Supply: Mission Survival Planner.** A hackathon project (Geaux Hack) that treats off-Earth life support as a supply chain. It is a **mission-planning decision tool, not a game.**
+**Res-Supply Chain: Mission Survival Planner.** A hackathon project (Geaux Hack) that treats off-Earth life support as a supply chain. It is a **mission-planning decision tool, not a game.**
 
 It answers one question: **"Will this crew survive, and what should we change so they do?"**
 
@@ -221,8 +221,8 @@ About **2 hours before presenting**, `main` freezes: only demo-critical fixes, e
 
 ## Setup for new teammates
 
-1. Get added as a collaborator on `github.com/Joseph-Rebert/mars-supply-sim` and accept the invite.
-2. `gh auth login`, then `git clone https://github.com/Joseph-Rebert/mars-supply-sim.git && cd mars-supply-sim && npm install`
+1. Get added as a collaborator on `github.com/Joseph-Rebert/res-supply-chain` and accept the invite.
+2. `gh auth login`, then `git clone https://github.com/Joseph-Rebert/res-supply-chain.git && cd res-supply-chain && npm install`
 3. Connect Linear in Claude Code. Either:
    - enable the **Linear** connector in your claude.ai account settings and run `/mcp` in Claude Code to authenticate, or
    - `claude mcp add --transport http linear https://mcp.linear.app/mcp`, then `/mcp` to log in.
