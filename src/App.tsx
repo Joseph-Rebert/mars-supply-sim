@@ -266,7 +266,7 @@ function App() {
 
         <section id="costs" className="sc-page-section" aria-labelledby="costs-title">
           <h2 id="costs-title" className="sc-h2">
-            What it costs
+            Cost breakdown
           </h2>
           <p className="sc-muted">
             Each rocket costs $178M however full it is, so its price is split across what it carries
