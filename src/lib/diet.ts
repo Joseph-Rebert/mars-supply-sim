@@ -10,6 +10,7 @@ import {
   MINERAL_DECAY_PER_DAY,
   VITAMIN_C_DECAY_PER_DAY,
   VITAMIN_D_DECAY_PER_DAY,
+  VITAMIN_C_SUPPLEMENT_MG_PER_DAY,
   VITAMIN_D_SUPPLEMENT_UG_PER_DAY,
 } from './data'
 import {
@@ -95,8 +96,15 @@ const SUPPLEMENT = Float64Array.from(NUTRIENT_KEYS, (k) =>
 )
 
 /** Null when any crew member lacks a full profile (no personal needs to compare against). */
-export function createNutritionTracker(crew: readonly CrewMember[]): NutritionTracker | null {
+export function createNutritionTracker(
+  crew: readonly CrewMember[],
+  options: { vitaminCSupplement?: boolean } = {},
+): NutritionTracker | null {
   if (crew.length === 0 || !crew.every(hasFullProfile)) return null
+  const supplement = Float64Array.from(SUPPLEMENT)
+  if (options.vitaminCSupplement) {
+    supplement[NUTRIENT_KEYS.indexOf('vitaminCMg')] += VITAMIN_C_SUPPLEMENT_MG_PER_DAY
+  }
   const needs: DailyNeeds[] = crew.map((m) => dailyNeeds(m as Parameters<typeof dailyNeeds>[0]))
   const totalFoodKg = needs.reduce((s, n) => s + n.foodKg, 0)
   const shares = needs.map((n) => n.foodKg / totalFoodKg)
@@ -150,7 +158,7 @@ export function createNutritionTracker(crew: readonly CrewMember[]): NutritionTr
       for (let i = 0; i < shares.length; i++) {
         for (let n = 0; n < N; n++) {
           const j = i * N + n
-          lastIntake[j] = shares[i] * intake[n] + SUPPLEMENT[n]
+          lastIntake[j] = shares[i] * intake[n] + supplement[n]
           const short = need[j] - lastIntake[j]
           if (short > need[j] * SHORT_TOLERANCE) {
             deficit[j] += short

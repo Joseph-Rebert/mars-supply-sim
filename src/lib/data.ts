@@ -125,6 +125,15 @@ export const MINERAL_DECAY_PER_DAY = 0
 // ASSUMPTION: the supplement dose equals the 10 µg/day NASA goal (no dose is given in either source).
 export const VITAMIN_D_SUPPLEMENT_UG_PER_DAY = 10
 
+// Source: the NASA vitamin C requirement above (VITAMIN_C_MG_PER_DAY, 100 mg/day).
+// ASSUMPTION: an optional daily tablet covers the full requirement. ISS crews get vitamin D this way, not C
+// (BVAD Rev2 p.122), so this is a planning option the fix search can suggest, off by default.
+export const VITAMIN_C_SUPPLEMENT_MG_PER_DAY = VITAMIN_C_MG_PER_DAY
+
+// ASSUMPTION: shipped tablet mass is twice the ascorbic acid it contains (binder, coating, bottle); no space-food
+// figure was found. 100 mg/day × 4 crew × 900 days ≈ 0.7 kg.
+export const VITAMIN_C_SUPPLEMENT_KG_PER_MG = 2e-6
+
 // ---------- Body health (GEA-23) ----------
 
 // Source: LeBlanc et al., "Bone mineral and lean tissue loss after long duration space flight", J Musculoskelet

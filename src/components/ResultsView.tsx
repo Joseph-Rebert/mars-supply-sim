@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { missionMonth, type WeakestLink } from '../lib/analysis'
+import { missionMonth, type NutritionWarning, type WeakestLink } from '../lib/analysis'
 import { DAYS_PER_MONTH } from '../lib/plan'
 import type { MissionPlan, SimResult } from '../lib/types'
+import { NutritionNote } from './NutritionNote'
 import { Panel } from './Panel'
 import { ResourceTimeline, type TimelineHighlight } from './ResourceTimeline'
 import { WeakestLinkCallout, type FixState } from './WeakestLinkCallout'
@@ -15,6 +16,9 @@ type Props = {
   applyBlockedReason?: string
   applying: boolean
   onApplyFix: () => void
+  /** Non-fatal diet warning for the run's plan (GEA-32), if any. */
+  nutrition?: NutritionWarning
+  onApplyNutritionFix?: () => void
 }
 
 /** The failure month of the weakest link, as a band on the timeline. */
@@ -29,7 +33,8 @@ function failureMonthBand(link: WeakestLink, durationDays: number): TimelineHigh
   }
 }
 
-/** The Overview tab: the resource timeline full width, then the weakest link and suggested fix. */
+/** The Overview tab: the resource timeline full width, then the weakest link, suggested fix and any
+ * nutrition warning (GEA-32). */
 export function ResultsView({
   result,
   plan,
@@ -38,6 +43,8 @@ export function ResultsView({
   applyBlockedReason,
   applying,
   onApplyFix,
+  nutrition,
+  onApplyNutritionFix,
 }: Props) {
   const highlight = useMemo(
     () => failureMonthBand(link, result.durationDays),
@@ -56,6 +63,14 @@ export function ResultsView({
           applying={applying}
           onApply={onApplyFix}
         />
+        {nutrition && onApplyNutritionFix && (
+          <NutritionNote
+            warning={nutrition}
+            applyBlockedReason={applyBlockedReason}
+            applying={applying}
+            onApply={onApplyNutritionFix}
+          />
+        )}
       </section>
     </div>
   )

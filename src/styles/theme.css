@@ -1440,6 +1440,15 @@ p {
   cursor: help;
 }
 
+/* Nutrition warning (GEA-32): same callout, caution color. */
+.callout.is-caution {
+  border-color: var(--caution);
+}
+
+.callout.is-caution .callout-title {
+  color: var(--caution);
+}
+
 /* ---------- UI overhaul (GEA-43): mission picker, tabs, stats strip ---------- */
 
 .mission-picker {

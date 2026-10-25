@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   emergencyLaunchDate,
+  nutritionWarning,
   missionMonth,
   suggestFix,
   weakestLink,
@@ -9,7 +10,14 @@ import {
 import { addDays, daysBetween } from './dates'
 import { fakePlan } from './fake'
 import { transferFor } from './transfers'
-import { flightCapacity, overCapacityFlights, totalLaunchMassKg } from './manifest'
+import {
+  flightCapacity,
+  overCapacityFlights,
+  supplementMassKg,
+  totalLaunchMassKg,
+} from './manifest'
+import { withCrewMemberUpdated } from './plan'
+import { presetById } from './presets'
 import { runMission } from './sim'
 import type { FailureCause, MissionPlan, SimResult } from './types'
 
@@ -264,5 +272,89 @@ describe('suggestFix', () => {
       status: 'allClear',
       sentence: 'All clear: the crew survives in 100.0% of runs.',
     })
+  })
+})
+
+describe('health and nutrition (GEA-32)', () => {
+  const SLOW = 30_000
+  const unfit = (driver: string, day: number): FailureCause => ({
+    kind: 'crewUnfit',
+    day,
+    crewId: 'c1',
+    driver,
+  })
+
+  it('names the health driver in the weakest link', () => {
+    // Day 640 → month 22 (640 / 30.4375 = 21.03).
+    const link = weakestLink(
+      result(100, 0.7, [
+        ...range(0, 20).map(() => unfit('boneLoss', 640)),
+        ...range(0, 6).map(() => unfit('scurvy', 640)),
+        ...range(0, 4).map(() => unfit('bodyMass', 640)),
+      ]),
+    )
+    if (link.status !== 'atRisk') throw new Error('expected atRisk')
+    expect(link.causes.map((c) => c.sentence)).toEqual([
+      'In 20% of runs, bone loss makes a crew member medically unfit around month 22',
+      "In 6% of runs, a crew member's vitamin C falls to scurvy levels around month 22",
+      'In 4% of runs, a crew member loses more than 15% of body mass around month 22',
+    ])
+    expect(link.top).toMatchObject({ key: 'crewUnfit/boneLoss', driver: 'boneLoss' })
+    expect(link.causes.map((c) => c.label)).toEqual([
+      'Crew · bone loss',
+      'Crew · vitamin C (scurvy)',
+      'Crew · body mass loss',
+    ])
+  })
+
+  it(
+    'fixes bone loss by restoring the exercise countermeasure, at no launch mass',
+    () => {
+      let plan = presetById('revised').plan()
+      for (const m of plan.crew) plan = withCrewMemberUpdated(plan, m.id, { exerciseMinPerDay: 30 })
+      const before = runMission(plan, LIGHT)
+      expect(weakestLink(before).sentence).toMatch(/bone loss makes a crew member medically unfit/)
+      const fix = suggestFix(plan, before)
+      if (fix.status !== 'fix') throw new Error(fix.sentence)
+      expect(fix.kind).toBe('exercise')
+      expect(fix.plan.crew.every((m) => m.exerciseMinPerDay === 90)).toBe(true)
+      expect(fix.massDeltaKg).toBe(0)
+      expect(fix.survivalAfter).toBeGreaterThan(fix.survivalBefore + 0.5)
+    },
+    SLOW,
+  )
+
+  it('warns that a stored-food-only Mars plan runs short of vitamin C, with a tablet fix', () => {
+    const draft = presetById('draft').plan()
+    expect(draft.destination).toBe('mars')
+    expect(draft.lifeSupport.greenhouse.enabled).toBe(false) // stored food only
+
+    const w = nutritionWarning(draft)!
+    expect(w.sentence).toMatch(
+      /^Vitamin C intake falls below the 100 mg\/day need for .+, first around month \d+: stored food loses/,
+    )
+    expect(w.crewIds.length).toBeGreaterThan(0)
+
+    // 4 crew × 900 days × 100 mg × 2 (binder, bottle) = 0.72 kg, on the first flight, within its limit.
+    const fix = w.fix!
+    expect(fix.plan.lifeSupport.vitaminCSupplement).toBe(true)
+    expect(fix.massDeltaKg).toBeCloseTo(0.72, 9)
+    expect(supplementMassKg(fix.plan)).toBeCloseTo(0.72, 9)
+    expect(fix.description).toBe(
+      'Add a daily vitamin C tablet for the crew (+0.7 kg on Cargo lander 1)',
+    )
+    expect(overCapacityFlights(fix.plan)).toEqual([])
+    expect(nutritionWarning(fix.plan)).toBeUndefined()
+  })
+
+  it('offers no tablet fix when it would break the first flight’s mass limit', () => {
+    const full = presetById('draft').plan()
+    const c = flightCapacity(full, full.flights[0])
+    // Fill to within 0.1 kg of the limit: less room than the 0.72 kg of tablets.
+    full.flights[0].consumablesKg.water += (c.capacityKg - c.massKg - 0.1) / 1.1
+    expect(overCapacityFlights(full)).toEqual([])
+    const w = nutritionWarning(full)
+    expect(w?.sentence).toMatch(/Vitamin C intake falls below/)
+    expect(w?.fix).toBeUndefined()
   })
 })

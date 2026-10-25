@@ -1,7 +1,13 @@
 // Cargo flights: launch mass, date-adjusted capacity, and when each one lands.
 // Shared by the sim (arrival days), the Monte Carlo result (arrivals, total mass) and the manifest UI.
 
-import { COMPONENTS, DESTINATION_PROFILES, SHIPPING_OVERHEAD_KG_PER_KG } from './data'
+import {
+  COMPONENTS,
+  DESTINATION_PROFILES,
+  SHIPPING_OVERHEAD_KG_PER_KG,
+  VITAMIN_C_SUPPLEMENT_KG_PER_MG,
+  VITAMIN_C_SUPPLEMENT_MG_PER_DAY,
+} from './data'
 import { addDays, daysBetween } from './dates'
 import { launchWindows, transferFor } from './transfers'
 import {
@@ -27,8 +33,27 @@ export function flightMassKg(flight: CargoFlight): number {
   return consumables + spares
 }
 
+/**
+ * Vitamin C tablets for the whole crew and mission (0 when the plan doesn't take them). They ride on the
+ * plan's first flight, the initial landing, and are available from day 0.
+ */
+export function supplementMassKg(plan: MissionPlan): number {
+  if (!plan.lifeSupport.vitaminCSupplement) return 0
+  return (
+    plan.crew.length *
+    plan.durationDays *
+    VITAMIN_C_SUPPLEMENT_MG_PER_DAY *
+    VITAMIN_C_SUPPLEMENT_KG_PER_MG
+  )
+}
+
+/** Launch mass of a flight within its plan: its cargo, plus the supplements if it's the first flight. */
+function planFlightMassKg(plan: MissionPlan, flight: CargoFlight): number {
+  return flightMassKg(flight) + (flight === plan.flights[0] ? supplementMassKg(plan) : 0)
+}
+
 export function totalLaunchMassKg(plan: MissionPlan): number {
-  return plan.flights.reduce((sum, f) => sum + flightMassKg(f), 0)
+  return plan.flights.reduce((sum, f) => sum + flightMassKg(f), 0) + supplementMassKg(plan)
 }
 
 export type FlightCapacity = {
@@ -42,7 +67,7 @@ export type FlightCapacity = {
 
 export function flightCapacity(plan: MissionPlan, flight: CargoFlight): FlightCapacity {
   const transfer = transferFor(plan.destination, flight.launchDate)
-  const massKg = flightMassKg(flight)
+  const massKg = planFlightMassKg(plan, flight)
   const capacityKg = plan.baseVehiclePayloadKg * transfer.payloadFactor
   return { flightId: flight.id, transfer, massKg, capacityKg, overCapacity: massKg > capacityKg }
 }

@@ -2,13 +2,21 @@
 // TODO(GEA-33): plan comparison
 // TODO(GEA-26): ship-vs-make (stretch)
 
-import { CO2_SCRUBBER_GRACE_DAYS, COMPONENTS, SHIPPING_OVERHEAD_KG_PER_KG } from './data'
+import {
+  BODY_MASS_LOSS_UNFIT_PCT,
+  CO2_SCRUBBER_GRACE_DAYS,
+  COMPONENTS,
+  EXERCISE_FULL_COUNTERMEASURE_MIN,
+  SHIPPING_OVERHEAD_KG_PER_KG,
+  VITAMIN_C_MG_PER_DAY,
+} from './data'
 import { addDays, daysBetween } from './dates'
 import {
   emptyFlight,
   flightCapacity,
   flightMassKg,
   overCapacityFlights,
+  supplementMassKg,
   totalLaunchMassKg,
 } from './manifest'
 import { DAYS_PER_MONTH } from './plan'
@@ -16,9 +24,11 @@ import { mulberry32 } from './rng'
 import { arrivalDay, dailyRates, quantile, runOnce } from './sim'
 import { launchDateRange, transferFor } from './transfers'
 import {
+  COMPONENT_KEYS,
   CONSUMABLE_KEYS,
   type CargoFlight,
   type ComponentKey,
+  type ComponentSpec,
   type ConsumableKey,
   type FailureCause,
   type IsoDate,
@@ -71,6 +81,8 @@ export type FailureGroup = {
   key: string
   resource?: ConsumableKey
   component?: ComponentKey
+  /** For crew-unfit groups: why, e.g. 'boneLoss' or 'scurvy' (GEA-23). */
+  driver?: string
   count: number
   /** Failure days, ascending, for the distribution of when it happens. */
   days: number[]
@@ -89,7 +101,9 @@ function groupOf(cause: FailureCause): Omit<FailureGroup, 'count' | 'days'> {
     case 'systemDown':
       return { key: `systemDown/${cause.component}`, component: cause.component }
     case 'crewUnfit':
-      return { key: 'crewUnfit' }
+      return cause.driver
+        ? { key: `crewUnfit/${cause.driver}`, driver: cause.driver }
+        : { key: 'crewUnfit' }
   }
 }
 
@@ -123,6 +137,8 @@ export type WeakestLinkCause = {
   key: string
   resource?: ConsumableKey
   component?: ComponentKey
+  /** For crew-unfit causes: the health driver, e.g. 'boneLoss'. */
+  driver?: string
   /** Share of all runs that ended this way, 0–1. */
   share: number
   count: number
@@ -180,10 +196,29 @@ function causeText(
       label: `CO₂ · ${component} out of spares`,
     }
   }
+  const health = group.driver && UNFIT_SENTENCE[group.driver]
+  if (health) return { what: health.what(month), label: health.label }
   return {
     what: `a crew member becomes medically unfit around month ${month}`,
     label: 'Crew medically unfit',
   }
+}
+
+/** Weakest-link wording per crew-unfit driver (GEA-32). */
+const UNFIT_SENTENCE: Record<string, { what: (month: number) => string; label: string }> = {
+  boneLoss: {
+    what: (m) => `bone loss makes a crew member medically unfit around month ${m}`,
+    label: 'Crew · bone loss',
+  },
+  scurvy: {
+    what: (m) => `a crew member's vitamin C falls to scurvy levels around month ${m}`,
+    label: 'Crew · vitamin C (scurvy)',
+  },
+  bodyMass: {
+    what: (m) =>
+      `a crew member loses more than ${BODY_MASS_LOSS_UNFIT_PCT}% of body mass around month ${m}`,
+    label: 'Crew · body mass loss',
+  },
 }
 
 /**
@@ -222,6 +257,7 @@ export function weakestLink(result: SimResult): WeakestLink {
         key: g.key,
         resource: g.resource,
         component: g.component,
+        driver: g.driver,
         share,
         count: g.count,
         medianDay,
@@ -251,7 +287,8 @@ export const DEFAULT_FIX_OPTIONS: FixOptions = {
   maxAddedSpares: 8,
 }
 
-export type FixKind = 'addSpares' | 'moveSpares' | 'emergencyFlight' | 'addConsumables'
+export type FixKind =
+  'addSpares' | 'moveSpares' | 'emergencyFlight' | 'addConsumables' | 'exercise' | 'supplement'
 
 export type SuggestedFix =
   | { status: 'allClear'; sentence: string }
@@ -463,6 +500,58 @@ function spareCandidates(
   return out
 }
 
+/** Plan with the daily vitamin C tablet, or undefined if it's already on or breaks a mass limit. */
+function withVitaminC(plan: MissionPlan): MissionPlan | undefined {
+  if (plan.lifeSupport.vitaminCSupplement) return undefined
+  const next = { ...plan, lifeSupport: { ...plan.lifeSupport, vitaminCSupplement: true } }
+  return overCapacityFlights(next).length === 0 ? next : undefined
+}
+
+function vitaminCDescription(plan: MissionPlan, next: MissionPlan): string {
+  return `Add a daily vitamin C tablet for the crew (+${supplementMassKg(next).toFixed(1)} kg on ${plan.flights[0].label})`
+}
+
+/** Fixes for a crew member becoming medically unfit, by driver (GEA-32). */
+function healthCandidates(plan: MissionPlan, driver: string, failureDay: number): Candidate[] {
+  if (driver === 'boneLoss') {
+    // Exercise is the bone countermeasure; it costs crew time, not launch mass (the gym is in the habitat).
+    const short = plan.crew.filter((m) => m.exerciseMinPerDay < EXERCISE_FULL_COUNTERMEASURE_MIN)
+    if (short.length === 0) return []
+    const names = short.map((m) => `${m.name} (now ${m.exerciseMinPerDay})`).join(', ')
+    return [
+      {
+        kind: 'exercise',
+        plan: {
+          ...plan,
+          crew: plan.crew.map((m) =>
+            m.exerciseMinPerDay < EXERCISE_FULL_COUNTERMEASURE_MIN
+              ? { ...m, exerciseMinPerDay: EXERCISE_FULL_COUNTERMEASURE_MIN }
+              : m,
+          ),
+        },
+        description: `Raise exercise to ${EXERCISE_FULL_COUNTERMEASURE_MIN} min/day for ${names} (no launch mass)`,
+        addedKg: 0,
+        swappedOutKg: 0,
+      },
+    ]
+  }
+  if (driver === 'bodyMass') return consumableCandidates(plan, 'food', failureDay)
+  if (driver === 'scurvy') {
+    const next = withVitaminC(plan)
+    if (!next) return []
+    return [
+      {
+        kind: 'supplement',
+        plan: next,
+        description: vitaminCDescription(plan, next),
+        addedKg: supplementMassKg(next),
+        swappedOutKg: 0,
+      },
+    ]
+  }
+  return []
+}
+
 function consumableCandidates(
   plan: MissionPlan,
   resource: ConsumableKey,
@@ -512,7 +601,9 @@ export function suggestFix(
     ? spareCandidates(plan, top.component, top.resource, top.medianDay, options.maxAddedSpares)
     : top.resource
       ? consumableCandidates(plan, top.resource, top.medianDay)
-      : []
+      : top.driver
+        ? healthCandidates(plan, top.driver, top.medianDay)
+        : []
   if (candidates.length === 0) {
     return { status: 'noFix', sentence: `No fix fits the mass limits for: ${top.label}.` }
   }
@@ -552,4 +643,56 @@ export function suggestFix(
     massDeltaKg: totalLaunchMassKg(best.c.plan) - totalLaunchMassKg(plan),
     swappedOutKg: best.c.swappedOutKg,
   }
+}
+
+// ---------- Nutrition warning (GEA-32) ----------
+
+export type NutritionWarning = {
+  /** e.g. "Vitamin C intake falls below the 100 mg/day need around month 1 for Reyes and Lindqvist". */
+  sentence: string
+  firstShortDay: number
+  crewIds: string[]
+  /** Ready-to-apply fix (the daily vitamin C tablet), verified to clear the shortfall within mass limits. */
+  fix?: { description: string; plan: MissionPlan; massDeltaKg: number }
+}
+
+/** Every component made unbreakable: nutrition with no hardware failures in the way. */
+const UNBREAKABLE = Object.fromEntries(
+  COMPONENT_KEYS.map((c) => [c, { ...COMPONENTS[c], mtbfDays: Infinity }]),
+) as Record<ComponentKey, ComponentSpec>
+
+function vitaminCShortfall(plan: MissionPlan) {
+  const tallies = runOnce(plan, mulberry32(1), UNBREAKABLE).nutrition
+  if (!tallies) return undefined
+  const short = plan.crew
+    .map((m) => ({ m, day: tallies[m.id]?.vitaminCMg.firstShortDay ?? null }))
+    .filter((x): x is { m: (typeof plan.crew)[number]; day: number } => x.day !== null)
+  return short.length > 0 ? short : undefined
+}
+
+/**
+ * Stored food loses vitamin C with shelf age, so intake can fall below need long before anyone gets
+ * scurvy: not fatal, but worth fixing. Checked on a run with no hardware failures, so the warning is
+ * about the diet, not about running out of food.
+ */
+export function nutritionWarning(plan: MissionPlan): NutritionWarning | undefined {
+  const short = vitaminCShortfall(plan)
+  if (!short) return undefined
+  const firstShortDay = Math.min(...short.map((s) => s.day))
+  const names = short.map((s) => s.m.name)
+  const who = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0]
+  const warning: NutritionWarning = {
+    sentence: `Vitamin C intake falls below the ${VITAMIN_C_MG_PER_DAY} mg/day need for ${who}, first around month ${missionMonth(firstShortDay)}: stored food loses about a quarter of its vitamin C a year`,
+    firstShortDay,
+    crewIds: short.map((s) => s.m.id),
+  }
+  const next = withVitaminC(plan)
+  if (next && !vitaminCShortfall(next)) {
+    warning.fix = {
+      description: vitaminCDescription(plan, next),
+      plan: next,
+      massDeltaKg: totalLaunchMassKg(next) - totalLaunchMassKg(plan),
+    }
+  }
+  return warning
 }
