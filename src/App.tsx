@@ -195,7 +195,7 @@ function App() {
           aria-haspopup="dialog"
           onClick={() => setWizardOpen(true)}
         >
-          Set up mission
+          Start new mission
         </button>
         <button
           type="button"
