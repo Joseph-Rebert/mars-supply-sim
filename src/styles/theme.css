@@ -1,36 +1,44 @@
-/* Flight-console theme: a telemetry sheet, not a card dashboard. Hairline rules instead of boxes,
-   square corners, one amber accent, status colors only when something is off-nominal.
-   All colors live here as tokens — no hard-coded colors in components.
+/* Engineering-report theme: reads like a NASA flight-plan document, not a dashboard. Light paper,
+   black type, hairline rules instead of boxes, heavier ink rules to open a section, square corners.
+   Blue for actions and cargo in flight; status colors only when something is off-nominal, red first.
+   IBM Plex Sans for words, Plex Mono only for numbers. All colors live here as tokens.
    Contrast targets a projector: body text ≥ 16px, text ≥ 7:1 on --bg; even the dimmest text
    (hints, disabled controls) stays above WCAG AA's 4.5:1. */
 
 :root {
-  --bg: #0d0c0a;
-  --bg-raised: #15140f;
-  --rule: #2e2b24;
-  --rule-strong: #4a453a;
-  --text: #ebe5d6;
-  --text-muted: #a39c8b;
-  --text-dim: #8f8878;
+  --bg: #fbfbf9;
+  --bg-raised: #f1f2ee;
+  --rule: #dcded8;
+  --rule-strong: #a9aea7;
+  --ink: #16191c;
+  --text: #16191c;
+  --text-muted: #4f555b;
+  --text-dim: #646a70;
 
-  --accent: #ffb000;
-  --on-accent: #0d0c0a;
-  --nominal: #7fd68f;
-  --caution: #ffd84a;
-  --critical: #ff5a4e;
-  --focus: #ffb000;
+  --accent: #1f4e79;
+  --on-accent: #ffffff;
+  --nominal: #2b6e2f;
+  --caution: #8a5300;
+  --critical: #b3261e;
+  --focus: #1f4e79;
 
   /* One color per resource, shared with charts (read via src/components/themeColors.ts) */
-  --res-o2: #8fb8ff;
-  --res-water: #4fd1c5;
-  --res-food: #b9d95c;
-  --res-spares: #d9a6f2;
+  --res-o2: #2f68b0;
+  --res-water: #0b7f86;
+  --res-food: #5e7d10;
+  --res-spares: #8243a8;
+  --res-fuel: #b4531a;
 
-  --chart-grid: #26231d;
-  --chart-axis: #a39c8b;
+  --chart-grid: #e7e8e3;
+  --chart-axis: #4f555b;
 
-  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  /* Orbit view planets (read via cssVar in OrbitView) */
+  --planet-earth: #2f68b0;
+  --planet-mars: #c0502b;
+  --sun: #c98a00;
+
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   --fs-body: 16px;
   --fs-label: 14px;
@@ -42,9 +50,9 @@
   --pad: 24px;
   --gap: 16px;
   --header-h: 56px;
-  --track: 0.08em;
+  --track: 0.06em;
 
-  color-scheme: dark;
+  color-scheme: light;
   font: var(--fs-body) / 1.5 var(--sans);
   color: var(--text);
   background: var(--bg);
@@ -93,10 +101,10 @@ p {
 /* ---------- Layout ---------- */
 
 .app {
-  /* Header, tabs, the active tab (scrolls), and the stats strip, which never leaves the screen. */
+  /* Header, tabs, and the active tab (scrolls). The key numbers live on the Overview now. */
   height: 100vh;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
   /* An auto column would grow to the header's full width; keep it to the viewport. */
   grid-template-columns: minmax(0, 1fr);
 }
@@ -107,17 +115,18 @@ p {
   align-items: center;
   gap: var(--gap);
   padding: 0 var(--pad);
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--fs-title);
-  letter-spacing: var(--track);
-  text-transform: uppercase;
-  /* Double rule, like a console bezel */
-  border-bottom: 3px double var(--rule-strong);
+  /* Ink rule under the masthead, like the head of a report page */
+  border-bottom: 2px solid var(--ink);
 }
 
+/* The masthead: the one place the brand is set in tracked capitals. */
 .app-title {
-  font-size: var(--fs-brand);
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -136,7 +145,7 @@ p {
   align-items: center;
   gap: 8px;
   font-size: var(--fs-label);
-  color: var(--accent);
+  color: var(--text-dim);
   white-space: nowrap;
 }
 
@@ -175,7 +184,7 @@ p {
 
   .column + .column {
     border-left: 0;
-    border-top: 3px double var(--rule-strong);
+    border-top: 1px solid var(--rule-strong);
   }
 
   .app-subtitle {
@@ -206,19 +215,14 @@ p {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--fs-label);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: var(--track);
   text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.section-title::before {
-  content: '';
-  width: 12px;
-  height: 2px;
-  background: var(--accent);
+  color: var(--text);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ink);
 }
 
 /* ---------- Readout rows: LABEL ........ VALUE ---------- */
@@ -226,9 +230,8 @@ p {
 .readouts {
   display: grid;
   gap: 6px;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-variant-numeric: tabular-nums;
-  text-transform: uppercase;
 }
 
 .readout {
@@ -283,9 +286,9 @@ p {
 }
 
 .status-tag {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--fs-label);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: var(--track);
   text-transform: uppercase;
   padding: 2px 8px;
@@ -324,7 +327,7 @@ p {
 }
 
 .stat-label {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--fs-label);
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -346,13 +349,12 @@ p {
 
 /* ---------- Buttons ---------- */
 
+/* Secondary buttons are outlined in ink; the one primary action per view is solid ink. */
 .btn {
-  font: 700 var(--fs-body) / 1 var(--mono);
-  letter-spacing: var(--track);
-  text-transform: uppercase;
-  color: var(--accent);
+  font: 600 var(--fs-body) / 1 var(--sans);
+  color: var(--text);
   background: transparent;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--ink);
   border-radius: 0;
   padding: 14px 20px;
   cursor: pointer;
@@ -363,13 +365,13 @@ p {
 }
 
 .btn-primary {
-  color: var(--on-accent);
-  background: var(--accent);
+  color: var(--bg);
+  background: var(--ink);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--accent);
-  filter: brightness(1.12);
+  border-color: var(--accent);
 }
 
 .btn:disabled {
@@ -395,8 +397,7 @@ p {
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
-  font-family: var(--mono);
-  text-transform: uppercase;
+  font-family: var(--sans);
 }
 
 .field-label {
@@ -405,7 +406,7 @@ p {
 
 .field-value {
   font-variant-numeric: tabular-nums;
-  color: var(--accent);
+  color: var(--text);
 }
 
 .slider {
@@ -413,7 +414,7 @@ p {
   height: 20px;
   margin: 0;
   background: transparent;
-  accent-color: var(--accent);
+  accent-color: var(--ink);
   cursor: pointer;
   appearance: none;
 }
@@ -429,7 +430,7 @@ p {
   height: 20px;
   margin-top: -9px;
   border-radius: 0;
-  background: var(--accent);
+  background: var(--ink);
 }
 
 .slider::-moz-range-track {
@@ -442,7 +443,7 @@ p {
   height: 20px;
   border: 0;
   border-radius: 0;
-  background: var(--accent);
+  background: var(--ink);
 }
 
 /* ---------- Resource legend ---------- */
@@ -451,7 +452,7 @@ p {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 20px;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--fs-label);
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -490,7 +491,7 @@ p {
 }
 
 .hint {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--fs-label);
   color: var(--text-muted);
 }
@@ -505,8 +506,7 @@ p {
 .segmented-field legend {
   padding: 0;
   margin-bottom: 4px;
-  font-family: var(--mono);
-  text-transform: uppercase;
+  font-family: var(--sans);
 }
 
 .segmented {
@@ -537,17 +537,15 @@ p {
 .segmented-option span {
   padding: 6px 8px;
   text-align: center;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--fs-label);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
 .segmented-option input:checked + span {
-  color: var(--on-accent);
-  background: var(--accent);
+  color: var(--bg);
+  background: var(--ink);
 }
 
 .segmented-option input:focus-visible + span {
@@ -564,8 +562,7 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: var(--mono);
-  text-transform: uppercase;
+  font-family: var(--sans);
   cursor: pointer;
 }
 
@@ -591,12 +588,12 @@ p {
 }
 
 .switch:checked {
-  border-color: var(--accent);
+  border-color: var(--ink);
 }
 
 .switch:checked::after {
   left: 25px;
-  background: var(--accent);
+  background: var(--ink);
 }
 
 .slider:disabled {
@@ -621,8 +618,7 @@ p {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-  font-family: var(--mono);
-  text-transform: uppercase;
+  font-family: var(--sans);
 }
 
 .launch-picker-controls .field-label {
@@ -632,7 +628,7 @@ p {
 .date-input {
   font: var(--fs-label) / 1 var(--mono);
   font-variant-numeric: tabular-nums;
-  color: var(--accent);
+  color: var(--text);
   background: transparent;
   border: 1px solid var(--rule-strong);
   border-radius: 0;
@@ -665,9 +661,7 @@ p {
 /* ---------- Results view ---------- */
 
 .verdict-caption {
-  font-family: var(--mono);
-  letter-spacing: var(--track);
-  text-transform: uppercase;
+  font-family: var(--sans);
   color: var(--text-muted);
 }
 
@@ -751,7 +745,6 @@ p {
 .line-item-label {
   min-width: 0;
   color: var(--text-muted);
-  text-transform: uppercase;
   line-height: 1.25;
 }
 
@@ -772,8 +765,8 @@ p {
   width: 28px;
   flex: none;
   padding: 0;
-  font: 700 var(--fs-body) / 1 var(--mono);
-  color: var(--accent);
+  font: 600 var(--fs-body) / 1 var(--sans);
+  color: var(--text);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -914,9 +907,9 @@ p {
 }
 
 .callout-title {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--fs-label);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
@@ -944,7 +937,7 @@ p {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 13px;
   color: var(--text-muted);
 }
@@ -1018,10 +1011,8 @@ p {
 }
 
 .preset-select {
-  font: var(--fs-label) / 1 var(--mono);
-  letter-spacing: var(--track);
-  text-transform: uppercase;
-  color: var(--accent);
+  font: var(--fs-label) / 1 var(--sans);
+  color: var(--text);
   background: var(--bg);
   border: 1px solid var(--rule-strong);
   border-radius: 0;
@@ -1082,7 +1073,7 @@ p {
   letter-spacing: var(--track);
   text-transform: uppercase;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .comparison-table tbody tr:first-child td {
@@ -1101,8 +1092,6 @@ p {
 
 .comparison-links dt {
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--track);
 }
 
 .comparison-links dd {
@@ -1120,7 +1109,7 @@ p {
 /* Spans both layout columns, under the setup and results. */
 .crew-row {
   grid-column: 1 / -1;
-  border-top: 3px double var(--rule-strong);
+  border-top: 1px solid var(--rule-strong);
 }
 
 .crew-roster {
@@ -1144,14 +1133,12 @@ p {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  font-family: var(--mono);
+  font-family: var(--sans);
 }
 
 .crew-name {
   margin: 0;
   font-size: var(--fs-body);
-  letter-spacing: var(--track);
-  text-transform: uppercase;
 }
 
 .crew-role {
@@ -1176,9 +1163,8 @@ p {
   margin: 0;
   padding: 0;
   border: 0;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--fs-label);
-  text-transform: uppercase;
 }
 
 .crew-input-wrap {
@@ -1192,7 +1178,7 @@ p {
   min-width: 0;
   font: var(--fs-label) / 1 var(--mono);
   font-variant-numeric: tabular-nums;
-  color: var(--accent);
+  color: var(--text);
   background: transparent;
   border: 1px solid var(--rule-strong);
   border-radius: 0;
@@ -1245,7 +1231,7 @@ p {
 .run-error {
   margin: 16px var(--pad) 0;
   padding: 10px 14px;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--fs-label);
   color: var(--critical);
   border: 1px solid var(--critical);
@@ -1274,7 +1260,7 @@ p {
   align-items: center;
   gap: 8px 16px;
   padding: 14px var(--pad);
-  border-bottom: 3px double var(--rule-strong);
+  border-bottom: 2px solid var(--ink);
 }
 
 .wizard-steps {
@@ -1287,9 +1273,7 @@ p {
 }
 
 .wizard-steps button {
-  font: 700 var(--fs-label) / 1 var(--mono);
-  letter-spacing: var(--track);
-  text-transform: uppercase;
+  font: 600 var(--fs-label) / 1 var(--sans);
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--rule);
@@ -1302,9 +1286,9 @@ p {
 }
 
 .wizard-steps .is-current button {
-  color: var(--on-accent);
-  background: var(--accent);
-  border-color: var(--accent);
+  color: var(--bg);
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
 .wizard-body {
@@ -1356,10 +1340,8 @@ p {
 }
 
 .wiz-crew-head {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 12px;
-  letter-spacing: var(--track);
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -1381,7 +1363,7 @@ p {
 .progress-bar span {
   display: block;
   height: 100%;
-  background: var(--accent);
+  background: var(--ink);
   transition: width 120ms linear;
 }
 
@@ -1390,8 +1372,7 @@ p {
 }
 
 .wizard .field > .field-label {
-  font-family: var(--mono);
-  text-transform: uppercase;
+  font-family: var(--sans);
 }
 
 /* Crew card health (GEA-29, after a run) */
@@ -1415,8 +1396,7 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-family: var(--mono);
-  text-transform: uppercase;
+  font-family: var(--sans);
 }
 
 .crew-score {
@@ -1427,7 +1407,7 @@ p {
 .crew-estimate,
 .crew-alert {
   margin: 0;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--fs-label);
 }
 
@@ -1490,9 +1470,7 @@ p {
 }
 
 .tab {
-  font: 700 var(--fs-label) / 1 var(--mono);
-  letter-spacing: var(--track);
-  text-transform: uppercase;
+  font: 600 var(--fs-label) / 1 var(--sans);
   white-space: nowrap;
   color: var(--text-muted);
   background: transparent;
@@ -1549,7 +1527,7 @@ p {
   align-items: center;
   gap: 16px 24px;
   padding: 8px var(--pad);
-  border-top: 3px double var(--rule-strong);
+  border-top: 1px solid var(--rule-strong);
   background: var(--bg);
 }
 
@@ -1570,10 +1548,8 @@ p {
   display: grid;
   gap: 4px;
   justify-items: start;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 12px;
-  letter-spacing: var(--track);
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -1649,4 +1625,940 @@ p {
   .tab {
     padding: 10px 12px;
   }
+}
+
+/* ---------- Supply-chain overview ----------
+   Overview fits one 1280×720 screen: verdict and fix, three numbers, then exceptions beside one
+   timeline. Calmer type than the console chrome: sentence-case sans labels, mono only for numbers,
+   status color only where something needs attention. */
+
+.tab {
+  font: 500 15px / 1 var(--sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.tab.is-active {
+  color: var(--text);
+  border-bottom-color: var(--ink);
+}
+
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.tone-nominal {
+  --tone: var(--nominal);
+}
+
+.tone-caution {
+  --tone: var(--caution);
+}
+
+.tone-critical {
+  --tone: var(--critical);
+}
+
+.sc-overview,
+.sc-tab-body {
+  display: grid;
+  gap: 14px;
+  padding: 14px var(--pad);
+  min-width: 0;
+}
+
+.sc-btn {
+  font: inherit;
+  font-size: var(--fs-label);
+  font-weight: 500;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--ink);
+  padding: 6px 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sc-btn:hover:not(:disabled) {
+  background: var(--bg-raised);
+}
+
+/* The one primary action per view: solid ink. */
+.sc-btn.is-primary {
+  color: var(--bg);
+  background: var(--ink);
+  font-weight: 600;
+  padding: 9px 16px;
+}
+
+.sc-btn.is-primary:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.sc-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Section heads read like a report's: small capitals over an ink rule. */
+.sc-h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.sc-h2-count {
+  letter-spacing: 0;
+  color: var(--text-dim);
+}
+
+.sc-panel-head .sc-h2 {
+  flex: 1;
+}
+
+.sc-muted {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.sc-caption {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+/* Status label: a coloured kicker, no box. */
+.sc-pill {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--tone, var(--text-dim));
+}
+
+/* The verdict is the page's finding: kicker, one large sentence, the fix beside it. */
+.sc-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 40px;
+  padding: 6px 0 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.sc-verdict-text {
+  flex: 1 1 460px;
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  min-width: 0;
+}
+
+.sc-verdict-head {
+  font-size: 27px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.sc-verdict-action {
+  flex: 0 1 360px;
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  min-width: 0;
+}
+
+/* Key numbers sit under ink rules, not in boxes. */
+.sc-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.sc-kpis.is-four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.sc-kpi {
+  display: grid;
+  padding-top: 6px;
+  border-top: 2px solid var(--ink);
+  min-width: 0;
+}
+
+.sc-kpi-label {
+  font-size: var(--fs-label);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Headline figures in Plex Sans with tabular digits; Plex Mono's slabs read as a typewriter this big. */
+.sc-kpi-value,
+.orbit-date-value {
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.sc-kpi-value {
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--tone, var(--text));
+}
+
+.sc-kpi-note {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.sc-split {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 2.6fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.sc-panel {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sc-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+/* Exceptions: ruled rows with a square severity mark, like an anomaly log. */
+.sc-exceptions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.sc-exception {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  padding: 8px 4px 8px 20px;
+  cursor: pointer;
+}
+
+.sc-exception::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 14px;
+  width: 9px;
+  height: 9px;
+  background: var(--caution);
+}
+
+.sc-exception.is-critical::before {
+  background: var(--critical);
+}
+
+.sc-exception:hover {
+  background: var(--bg-raised);
+}
+
+.sc-exception-title {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.sc-exception-detail {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.sc-seg {
+  display: flex;
+  border: 1px solid var(--ink);
+}
+
+.sc-seg button {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.sc-seg button + button {
+  border-left: 1px solid var(--ink);
+}
+
+.sc-seg button.is-on {
+  color: var(--bg);
+  background: var(--ink);
+}
+
+.sc-scroll {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.sc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-label);
+}
+
+.sc-table th {
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--rule-strong);
+  padding: 8px 14px 8px 0;
+  white-space: nowrap;
+}
+
+.sc-table td {
+  border-bottom: 1px solid var(--rule);
+  padding: 8px 14px 8px 0;
+  white-space: nowrap;
+}
+
+.sc-table .r {
+  text-align: right;
+}
+
+.sc-table td.tone-caution {
+  color: var(--tone);
+}
+
+.sc-table tr.is-highlight td {
+  background: var(--bg-raised);
+}
+
+.sc-table tr.is-highlight td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+  padding-left: 8px;
+}
+
+/* Assumptions drawer */
+
+.sc-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  /* Ink at a quarter: dims the page behind the drawer without blacking it out. */
+  background: rgb(22 25 28 / 0.25);
+}
+
+.sc-drawer {
+  width: min(400px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  padding: 16px 20px 20px;
+  background: var(--bg-raised);
+  border-left: 1px solid var(--rule-strong);
+}
+
+.sc-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sc-setting {
+  display: grid;
+  gap: 6px;
+}
+
+.sc-setting-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+}
+
+.sc-setting input[type='range'] {
+  width: 100%;
+  accent-color: var(--ink);
+}
+
+.sc-source {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.sc-source.is-assumed {
+  color: var(--caution);
+}
+
+.sc-facts {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+.sc-facts dt {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.sc-facts dd {
+  margin: 0;
+}
+
+/* Orbit view */
+
+.orbit {
+  display: grid;
+  grid-template-columns: minmax(0, 600px) minmax(240px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.orbit-canvas {
+  min-width: 0;
+}
+
+.orbit-canvas canvas {
+  display: block;
+  max-width: 100%;
+}
+
+.orbit-side {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.orbit-date {
+  display: grid;
+  gap: 2px;
+}
+
+.orbit-date-value {
+  font-size: var(--fs-stat);
+  line-height: 1.2;
+}
+
+.orbit-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.orbit-controls input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--ink);
+}
+
+.orbit-flights {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+
+.orbit-flight {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.orbit-flight:hover,
+.orbit-flight.is-focus {
+  background: var(--bg-raised);
+}
+
+.orbit-flight-name {
+  font-weight: 600;
+}
+
+.orbit-status {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.orbit-status.is-transit {
+  color: var(--accent);
+}
+
+.orbit-status.is-landed {
+  color: var(--nominal);
+}
+
+@media (max-width: 1000px) {
+  .sc-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sc-kpis.is-four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .orbit {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .sc-kpis {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sc-verdict-head {
+    font-size: 19px;
+  }
+}
+
+/* ---------- Less on screen: the overview shows only what's needed at a glance ---------- */
+
+.sc-kpis.is-two {
+  grid-template-columns: repeat(2, minmax(0, 260px));
+  gap: 40px;
+}
+
+.sc-link {
+  justify-self: start;
+  font: inherit;
+  font-size: var(--fs-label);
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.sc-compare-link {
+  padding: 0 var(--pad) 16px;
+}
+
+/* "What changes?", "Costs and savings", "Show all supplies": details one click away. */
+.sc-more > summary {
+  font-size: var(--fs-label);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.sc-more > summary:hover {
+  color: var(--text);
+}
+
+.sc-more[open] > summary {
+  margin-bottom: 8px;
+}
+
+.sc-more .sc-tab-body {
+  padding: 8px 0 0;
+}
+
+/* Equipment table: which rocket each item rides on. */
+.sc-select {
+  font: inherit;
+  font-size: var(--fs-label);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--rule-strong);
+  padding: 4px 6px;
+  max-width: 100%;
+}
+
+/* ---------- Shipments: one table, one rocket's cargo open at a time ---------- */
+
+.sc-ship {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sc-table .sc-carries {
+  white-space: normal;
+  max-width: 320px;
+}
+
+.sc-table tr.sc-row-quiet td {
+  color: var(--text-dim);
+}
+
+.sc-pill.tone-quiet {
+  color: var(--text-dim);
+}
+
+.sc-table tr.sc-edit-row > td {
+  background: var(--bg-raised);
+  padding: 16px;
+  white-space: normal;
+}
+
+.sc-editor {
+  display: grid;
+  gap: 16px;
+}
+
+.sc-editor-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.sc-equipment {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sc-equipment legend {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.sc-check {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--fs-label);
+  cursor: pointer;
+}
+
+.sc-check input {
+  accent-color: var(--ink);
+}
+
+.sc-editor-foot,
+.sc-ship-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+}
+
+.sc-editor-foot .mass-bar {
+  flex: 1 1 320px;
+}
+
+.sc-muted.tone-caution {
+  color: var(--tone);
+}
+
+@media (max-width: 900px) {
+  .sc-editor-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Crew card opened from the crew table: one card, full width. */
+.sc-edit-row .crew-roster {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 560px;
+}
+
+/* ---------- Shipments as a manifest: one card per rocket ---------- */
+
+:root {
+  /* Equipment in the room bar and manifest; supplies reuse the --res-* colors. */
+  --cargo-equipment: #6b7076;
+}
+
+.sc-ship-total {
+  font-size: 17px;
+  line-height: 1.45;
+  max-width: 70ch;
+}
+
+.sc-ship-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.sc-rocket {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule-strong);
+  border-top: 2px solid var(--ink);
+  min-width: 0;
+}
+
+.sc-rocket.is-marked {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sc-rocket.is-empty {
+  border-style: dashed;
+  border-top: 1px dashed var(--rule-strong);
+}
+
+.sc-rocket-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.sc-rocket-name {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.sc-rocket-full {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.sc-rocket-when {
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.sc-rocket-note {
+  color: var(--tone);
+  font-weight: 500;
+}
+
+.sc-room {
+  display: flex;
+  height: 14px;
+  background: var(--bg-raised);
+  border: 1px solid var(--rule-strong);
+  overflow: hidden;
+}
+
+.sc-room-seg {
+  height: 100%;
+  border-right: 1px solid var(--bg);
+}
+
+.sc-manifest {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.sc-manifest li {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 15px;
+}
+
+.sc-manifest-amount {
+  font-size: 14px;
+}
+
+.sc-swatch {
+  width: 10px;
+  height: 10px;
+}
+
+.is-water.sc-swatch,
+.is-water.sc-room-seg {
+  background: var(--res-water);
+}
+.is-food.sc-swatch,
+.is-food.sc-room-seg {
+  background: var(--res-food);
+}
+.is-o2.sc-swatch,
+.is-o2.sc-room-seg {
+  background: var(--res-o2);
+}
+.is-spares.sc-swatch,
+.is-spares.sc-room-seg {
+  background: var(--res-spares);
+}
+.is-fuel.sc-swatch,
+.is-fuel.sc-room-seg {
+  background: var(--res-fuel);
+}
+.is-equipment.sc-swatch,
+.is-equipment.sc-room-seg {
+  background: var(--cargo-equipment);
+}
+
+.sc-rocket-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sc-rocket .sc-editor {
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+
+.sc-rocket .sc-editor-cols {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ---------- Overview supplies: one small chart per supply ---------- */
+
+.sc-supplies {
+  display: grid;
+  gap: 8px;
+}
+
+.sc-supplies-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.sc-key-line {
+  display: inline-block;
+  width: 18px;
+  height: 0;
+  border-top: 2.5px solid var(--text-muted);
+}
+
+.sc-key-line.is-unlucky {
+  margin-left: 12px;
+  border-top: 1.5px solid var(--critical);
+}
+
+.sc-supplies-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px 24px;
+}
+
+.sc-supply {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sc-supply-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+}
+
+.sc-supply-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sc-supply-verdict {
+  font-size: 13px;
+  color: var(--tone);
+}
+
+@media (max-width: 900px) {
+  .sc-supplies-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Best-fix steps and the cost table title on Shipments. */
+.sc-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+}
+
+.sc-cost-title {
+  margin-top: 16px;
+}
+
+.sc-table .sc-swatch {
+  display: inline-block;
+  margin-right: 6px;
+}
+
+/* ---------- One page: no tabs ---------- */
+
+.app.is-single {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.sc-page-section {
+  display: grid;
+  gap: 12px;
+  padding: 8px var(--pad) 20px;
+  min-width: 0;
+  scroll-margin-top: 8px;
+}
+
+.sc-fixed {
+  padding: 0 var(--pad) 8px;
+  font-size: 15px;
+  color: var(--nominal);
+  font-weight: 500;
+}
+
+.sc-page-section > .sc-more {
+  border-top: 1px solid var(--rule);
+  padding-top: 10px;
+}
+
+.sc-page-section > .sc-more > summary {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
 }

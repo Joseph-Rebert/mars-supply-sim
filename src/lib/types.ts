@@ -7,12 +7,15 @@ export type IsoDate = string
 
 export type Destination = 'mars' | 'moon'
 
-/** Resources tracked per day. 'spares' is the total spare-part count across all components. */
-export type ResourceKey = 'o2' | 'water' | 'food' | 'spares'
-export const RESOURCE_KEYS: readonly ResourceKey[] = ['o2', 'water', 'food', 'spares']
+/**
+ * Resources tracked per day. 'spares' is the total spare-part count across all components. 'fuel' is
+ * rover fuel: running out grounds the rover but doesn't end the mission.
+ */
+export type ResourceKey = 'o2' | 'water' | 'food' | 'spares' | 'fuel'
+export const RESOURCE_KEYS: readonly ResourceKey[] = ['o2', 'water', 'food', 'spares', 'fuel']
 
 /** Resources measured in kg that the crew consumes; running out of one ends the mission. */
-export type ConsumableKey = Exclude<ResourceKey, 'spares'>
+export type ConsumableKey = Exclude<ResourceKey, 'spares' | 'fuel'>
 export const CONSUMABLE_KEYS: readonly ConsumableKey[] = ['o2', 'water', 'food']
 
 /** Life-support hardware that can fail (MTBF) and needs spares to repair. */
@@ -95,6 +98,27 @@ export type CargoFlight = {
   launchDate: IsoDate
   consumablesKg: Record<ConsumableKey, number>
   spares: Record<ComponentKey, number>
+  /** Base-building equipment on this rocket (each item rides on at most one). Absent = none. */
+  equipment?: EquipmentKey[]
+  /** Rover fuel (methane and oxygen, as burned), without its tanks. Absent = none. */
+  fuelKg?: number
+}
+
+/**
+ * Base-building cargo: takes room on a rocket and has a deadline, but is never used up, so it doesn't
+ * enter the daily sim. It shows up in rocket weights and as late or unpacked problems.
+ */
+export type EquipmentKey = 'habitat' | 'power' | 'rover'
+export const EQUIPMENT_KEYS: readonly EquipmentKey[] = ['habitat', 'power', 'rover']
+
+export type EquipmentSpec = {
+  label: string
+  massKg: number
+  /** Mission day it has to be on the surface by; 0 = before the crew arrives. */
+  neededByDay: number
+  readiness: ReadinessTier
+  /** What one costs to buy, in US dollars of the year of the source (not adjusted for inflation). */
+  priceUsd: number
 }
 
 export type MissionPlan = {

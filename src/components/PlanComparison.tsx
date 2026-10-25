@@ -23,7 +23,7 @@ function deltaText(d: Delta, unit: 'pts' | 'kg'): string {
   const arrow = d.delta > 0 ? '▲' : '▼'
   const sign = d.delta > 0 ? '+' : '−'
   const size = Math.abs(d.delta)
-  return `${arrow} ${sign}${unit === 'pts' ? size.toFixed(1) : fmt(size)} ${unit}`
+  return `${arrow} ${sign}${unit === 'pts' ? size.toFixed(1) : fmt(size)} ${unit === 'pts' ? 'points' : unit}`
 }
 
 function Row({ label, d, unit }: { label: string; d: Delta; unit: 'pts' | 'kg' }) {
@@ -93,7 +93,7 @@ function overlayOption(a: SavedRun, b: SavedRun, key: ResourceKey): EChartOption
       boundaryGap: false,
       axisLine: { lineStyle: { color: cssVar('--rule-strong') } },
       axisTick: { show: false },
-      axisLabel: { interval: 149, formatter: (d: string) => `D${d}` },
+      axisLabel: { interval: 149, formatter: (d: string) => `Day ${d}` },
     },
     yAxis: {
       type: 'value',
@@ -129,8 +129,8 @@ export function PlanComparison({ a, b }: Props) {
           </tr>
         </thead>
         <tbody>
-          <Row label="Survival" d={c.survivalPts} unit="pts" />
-          <Row label="Launch mass" d={c.totalMassKg} unit="kg" />
+          <Row label="Crew survives" d={c.survivalPts} unit="pts" />
+          <Row label="Weight to launch" d={c.totalMassKg} unit="kg" />
           {RESOURCE_KEYS.map((k) => (
             <Row key={k} label={`· ${RESOURCE_LABELS[k]}`} d={c.massKg[k]} unit="kg" />
           ))}

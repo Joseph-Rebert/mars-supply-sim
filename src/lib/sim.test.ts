@@ -286,7 +286,7 @@ describe('runOnce, component failures', () => {
       awaitingSpare: true,
     })
     expect(describeFailure(r.failure!)).toBe(
-      'Water ran out on day 45 because the water recycler was offline with no spares',
+      'Water ran out on day 45 because the water recycler was broken with no spare parts left',
     )
   })
 

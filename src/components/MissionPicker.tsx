@@ -42,7 +42,7 @@ export function MissionPicker({ value, saved, onPreset, onSaved, onNew, onSave }
             if (kind === 'saved') onSaved(id)
           }}
         >
-          <optgroup label="Demo scenarios">
+          <optgroup label="Example missions">
             {PRESETS.map((p) => (
               <option key={p.id} value={`preset:${p.id}`}>
                 {p.label}

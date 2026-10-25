@@ -10,7 +10,7 @@ import {
   type OptimizeProgress,
 } from '../lib/optimize'
 import { CREW_MAX, CREW_MIN, daysToMonths, monthsToDays, withCrewSize } from '../lib/plan'
-import type { ActivityLevel, CrewMember, Destination, MissionPlan, O2Source } from '../lib/types'
+import type { Destination, MissionPlan, O2Source } from '../lib/types'
 import { fmt } from './format'
 import { Segmented, Slider } from './MissionSetupForm'
 import { Readout } from './Readout'
@@ -43,9 +43,9 @@ function overallPct(p: OptimizeProgress | null): number {
 }
 
 const PHASE_TEXT: Record<OptimizeProgress['phase'], string> = {
-  search: 'Searching cargo plans, cheapest first',
-  trim: 'Trimming line items while survival holds',
-  verify: 'Verifying with 1 000 runs',
+  search: 'Trying cargo plans, cheapest first',
+  trim: 'Cutting extra cargo while the crew still makes it',
+  verify: 'Double-checking with 1,000 simulated missions',
 }
 
 const usd = (n: number) => `$${fmt(n / 1e6)}M`
@@ -123,8 +123,6 @@ export function PlanMissionWizard({ open, from, onClose, onLoad }: Props) {
   }
   const setLifeSupport = (patch: Partial<MissionSpec['lifeSupport']>) =>
     update({ lifeSupport: { ...spec.lifeSupport, ...patch } })
-  const setMember = (i: number, patch: Partial<CrewMember>) =>
-    update({ crew: spec.crew.map((m, j) => (j === i ? { ...m, ...patch } : m)) })
 
   const close = () => {
     setRun({ status: 'idle' })
@@ -171,76 +169,6 @@ export function PlanMissionWizard({ open, from, onClose, onLoad }: Props) {
               max={CREW_MAX}
               onChange={(n) => update({ crew: withCrewSize({ ...from, crew: spec.crew }, n).crew })}
             />
-            <div className="wiz-crew-table" role="table" aria-label="Crew profiles">
-              <div className="wiz-crew-row wiz-crew-head" role="row">
-                {['Name', 'Sex', 'Age', 'Mass kg', 'Height m', 'Activity', 'Exercise min/day'].map(
-                  (h) => (
-                    <span key={h} role="columnheader">
-                      {h}
-                    </span>
-                  ),
-                )}
-              </div>
-              {spec.crew.map((m, i) => (
-                <div className="wiz-crew-row" role="row" key={m.id}>
-                  <input
-                    className="wiz-input"
-                    aria-label={`Crew ${i + 1} name`}
-                    value={m.name}
-                    onChange={(e) => setMember(i, { name: e.target.value })}
-                  />
-                  <select
-                    className="wiz-input"
-                    aria-label={`${m.name} sex`}
-                    value={m.sex}
-                    onChange={(e) => setMember(i, { sex: e.target.value as CrewMember['sex'] })}
-                  >
-                    <option value="female">F</option>
-                    <option value="male">M</option>
-                  </select>
-                  {(
-                    [
-                      ['ageYears', 'age', 21, 70, 1],
-                      ['massKg', 'mass', 50, 110, 1],
-                      ['heightM', 'height', 1.5, 2, 0.01],
-                    ] as const
-                  ).map(([key, label, min, max, stepSize]) => (
-                    <input
-                      key={key}
-                      className="wiz-input mono"
-                      type="number"
-                      aria-label={`${m.name} ${label}`}
-                      min={min}
-                      max={max}
-                      step={stepSize}
-                      value={m[key] ?? 1.75}
-                      onChange={(e) => setMember(i, { [key]: Number(e.target.value) })}
-                    />
-                  ))}
-                  <select
-                    className="wiz-input"
-                    aria-label={`${m.name} activity`}
-                    value={m.activity}
-                    onChange={(e) => setMember(i, { activity: e.target.value as ActivityLevel })}
-                  >
-                    <option value="light">Light</option>
-                    <option value="moderate">Moderate</option>
-                    <option value="heavy">Heavy</option>
-                  </select>
-                  <input
-                    className="wiz-input mono"
-                    type="number"
-                    aria-label={`${m.name} exercise minutes per day`}
-                    min={0}
-                    max={240}
-                    step={15}
-                    value={m.exerciseMinPerDay}
-                    onChange={(e) => setMember(i, { exerciseMinPerDay: Number(e.target.value) })}
-                  />
-                </div>
-              ))}
-            </div>
-            <p className="hint">Body stats set each person’s food and health (NASA EER, BVAD).</p>
           </div>
         )}
 
@@ -289,17 +217,17 @@ export function PlanMissionWizard({ open, from, onClose, onLoad }: Props) {
               value={Math.round(spec.lifeSupport.waterRecoveryRate * 100)}
               min={70}
               max={98}
-              hint="ISS: 93 % → 98 % (2023)"
+              hint="The space station recycles 98% (since 2023)"
               onChange={(pct) => setLifeSupport({ waterRecoveryRate: pct / 100 })}
             />
             <Segmented<O2Source>
-              legend="O₂ source"
+              legend="Where oxygen comes from"
               name="wiz-o2"
               value={spec.lifeSupport.o2Source}
               options={[
-                { value: 'electrolysis', label: 'Electrolysis' },
-                { value: 'isru', label: 'ISRU' },
-                { value: 'tanks', label: 'Tanks' },
+                { value: 'electrolysis', label: 'Made from water' },
+                { value: 'isru', label: 'Made on site' },
+                { value: 'tanks', label: 'Shipped in tanks' },
               ]}
               onChange={(o2Source) => setLifeSupport({ o2Source })}
             />
@@ -382,12 +310,16 @@ export function PlanMissionWizard({ open, from, onClose, onLoad }: Props) {
               <div className="wizard-result">
                 <p className={`callout-text ${run.result.reachedTarget ? '' : 'is-critical'}`}>
                   {run.result.reachedTarget
-                    ? `Cheapest plan found: ${(run.result.survivalRate * 100).toFixed(1)}% survival (target ${Math.round(spec.targetSurvival * 100)}%).`
+                    ? `Cheapest plan found: the crew makes it in ${(run.result.survivalRate * 100).toFixed(1)}% of missions (goal: ${Math.round(spec.targetSurvival * 100)}%).`
                     : run.result.notes[0]}
                 </p>
                 <div className="stat-row">
-                  <StatTile label="Launches" value={`${run.result.launches}`} />
-                  <StatTile label="Launch mass" value={fmt(run.result.launchMassKg)} unit="kg" />
+                  <StatTile label="Rockets" value={`${run.result.launches}`} />
+                  <StatTile
+                    label="Weight to launch"
+                    value={fmt(run.result.launchMassKg)}
+                    unit="kg"
+                  />
                   <StatTile label="Launch cost" value={usd(run.result.costUsd)} />
                 </div>
                 <div className="readouts">

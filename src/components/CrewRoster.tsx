@@ -144,7 +144,7 @@ function CrewHealth({ run }: { run: CrewRun }) {
       </p>
       {status.tone !== 'nominal' && (
         <p className={`crew-alert is-${status.tone}`} role="status">
-          Unfit in {Math.round(status.unfitShare * 100)}% of runs
+          Too sick to work in {Math.round(status.unfitShare * 100)} out of 100 missions
           {status.driver ? ` · ${status.driver}` : ''}
         </p>
       )}
@@ -202,7 +202,7 @@ function CrewCard({
           onChange={(ageYears) => onEdit({ ageYears })}
         />
         <NumberInput
-          label="Mass"
+          label="Weight"
           unit="kg"
           field="massKg"
           value={member.massKg}

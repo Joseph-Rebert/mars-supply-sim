@@ -9,6 +9,8 @@ import type {
   ConsumableKey,
   Destination,
   DestinationProfile,
+  EquipmentKey,
+  EquipmentSpec,
   O2Source,
   ReadinessTier,
 } from './types'
@@ -313,7 +315,7 @@ const WATER_RECYCLER: ComponentSpec = {
 // Source: Jones ICES-2019-11 Table A.1 (OGA, 4 ORUs): MTBF 444.3 d, weighted spare 70.2 kg.
 // ASSUMPTION: repair takes 1 day, as above.
 const O2_GENERATOR: ComponentSpec = {
-  label: 'O₂ generator',
+  label: 'Oxygen maker',
   mtbfDays: 444.3,
   spareMassKg: 70.2,
   repairDays: 1,
@@ -323,7 +325,7 @@ const O2_GENERATOR: ComponentSpec = {
 // Source: Jones ICES-2019-11 Table A.2 (CDRA, 4 ORUs): MTBF 987.4 d, weighted spare 27.8 kg.
 // ASSUMPTION: repair takes 1 day, as above.
 const CO2_SCRUBBER: ComponentSpec = {
-  label: 'CO₂ scrubber',
+  label: 'Air filter',
   mtbfDays: 987.4,
   spareMassKg: 27.8,
   repairDays: 1,
@@ -446,7 +448,7 @@ export const MOON_RESUPPLY_CADENCE_DAYS = 180
 const G0_M_S2 = 9.80665
 
 // Source: speed of light 299,792.458 km/s (BIPM SI Brochure, 9th ed., exact).
-const C_KM_S = 299_792.458
+export const C_KM_S = 299_792.458
 
 // Source: NASA Mars Fact Sheet, surface gravity 3.71 m/s², https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html
 export const MARS_GRAVITY_G = 3.71 / G0_M_S2
@@ -481,7 +483,7 @@ export const DESTINATION_PROFILES: Record<Destination, DestinationProfile> = {
     transfer: { kind: 'table' },
     baseVehiclePayloadKg: MARS_BASE_PAYLOAD_KG,
     isruO2KgPerDay: MOXIE_SCALED_O2_KG_PER_DAY,
-    isruLabel: 'MOXIE-style CO₂ electrolysis',
+    isruLabel: 'Pulls oxygen out of the Mars air, like NASA’s MOXIE',
     isruReadiness: 'demonstrated',
     gravityG: MARS_GRAVITY_G,
     commsDelaySeconds: MARS_COMMS_DELAY_S,
@@ -499,7 +501,7 @@ export const DESTINATION_PROFILES: Record<Destination, DestinationProfile> = {
     },
     baseVehiclePayloadKg: MOON_BASE_PAYLOAD_KG,
     isruO2KgPerDay: LUNAR_REGOLITH_O2_KG_PER_DAY,
-    isruLabel: 'Regolith oxygen extraction',
+    isruLabel: 'Pulls oxygen out of Moon soil',
     isruReadiness: 'concept',
     gravityG: MOON_GRAVITY_G,
     commsDelaySeconds: { min: MOON_COMMS_DELAY_S, max: MOON_COMMS_DELAY_S },
@@ -514,6 +516,106 @@ export const DESTINATION_PROFILES: Record<Destination, DestinationProfile> = {
 // $178M. https://www.nasa.gov/news-release/nasa-awards-launch-services-contract-for-europa-clipper-mission/
 // ASSUMPTION: every cargo flight costs one expendable Falcon Heavy at that price (the payload curve we use).
 export const LAUNCH_COST_USD = 178e6
+
+// ---------- Supply chain: order lead time and the orbit view ----------
+
+// ASSUMPTION: 18 months (548 days) from placing a cargo order to the cargo being ready to launch (build, test,
+// integrate, freeze the manifest). No sourced figure yet; the Assumptions drawer lets the user change it.
+export const ORDER_LEAD_TIME_DAYS = 548
+
+// Source: IAU 2012 Resolution B2, the astronomical unit is exactly 149,597,870.7 km.
+export const AU_KM = 149_597_870.7
+
+// Source: NASA Earth Fact Sheet, sidereal orbit period 365.256 days, https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html
+export const EARTH_ORBIT_PERIOD_DAYS = 365.256
+
+// Source: NASA Mars Fact Sheet, sidereal orbit period 686.980 days, https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html
+export const MARS_ORBIT_PERIOD_DAYS = 686.98
+
+// ---------- Rover fuel ----------
+
+// ASSUMPTION: 10 kW while driving, for a small pressurized rover like DRA 5.0's (NASA SP-2009-566). NASA's Mars
+// power studies size mission loads from 4 to 120 kWe (Withrow & Morales, NASA TM-106753 / NTRS 19950012155); the
+// rover's own figure couldn't be checked in the scanned report, so this is a planning value.
+export const ROVER_POWER_KW = 10
+
+// Source: Engineering ToolBox, "Fuels - Higher and Lower Calorific Values": methane LHV 50.0 MJ/kg,
+// https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
+export const METHANE_LHV_MJ_PER_KG = 50
+
+// Source: CH₄ + 2 O₂ → CO₂ + 2 H₂O, so 2 × 32 g of O₂ per 16 g of CH₄ = 4 kg of oxygen per kg of methane.
+export const O2_PER_METHANE_KG = 4
+
+// ASSUMPTION: 50% from fuel energy to electricity for a methane–oxygen solid oxide fuel cell; NASA JSC has
+// tested such cells for Mars (LOx/LCH₄ SOFC), but no flight efficiency is published.
+export const FUEL_CELL_EFFICIENCY = 0.5
+
+// ASSUMPTION: one 2-hour drive a week on average. A planning value, not sourced; raise it to see fuel run out.
+export const ROVER_DRIVE_HOURS_PER_WEEK = 2
+
+// Source: derived from the five values above: kWh needed a day ÷ kWh of electricity per kg of fuel
+// (methane plus its oxygen) = (10 kW × 2 h ÷ 7) ÷ (50 MJ ÷ 5 kg ÷ 3.6 × 0.5) ≈ 2.06 kg a day.
+export const FUEL_KG_PER_ROVER_DAY =
+  (ROVER_POWER_KW * ROVER_DRIVE_HOURS_PER_WEEK) /
+  7 /
+  ((METHANE_LHV_MJ_PER_KG / (1 + O2_PER_METHANE_KG) / 3.6) * FUEL_CELL_EFFICIENCY)
+
+// ASSUMPTION: fuel ships in pressure tanks like the O₂ ones (BVAD's 1.45 kg of tank per kg); cryogenic methane and
+// oxygen tanks would differ, but no better figure was found.
+export const FUEL_TANK_KG_PER_KG = O2_TANK_KG_PER_KG
+
+// ---------- Base-building equipment ----------
+
+// Source: NASA, SpaceX CRS-8 mission overview (2016): BEAM expandable module, mass 1,413 kg, 16 m³ pressurized.
+// ASSUMPTION: a BEAM-class expandable module stands in for the surface living space; a full Mars habitat for
+// four would be several times heavier.
+export const HABITAT_MODULE_MASS_KG = 1413
+
+// Source: NASA NSSDC, "The Apollo Lunar Roving Vehicle": mass 210 kg,
+// https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo_lrv.html
+export const ROVER_MASS_KG = 210
+
+// Source: NASA–Bigelow BEAM contract, $17.8 million firm-fixed-price, signed Dec 2012 (SpaceNews; NASA release
+// "NASA to Test Bigelow Expandable Module on Space Station", Jan 2013), https://www.nasa.gov/?p=50953
+// ASSUMPTION: 2012 dollars, not inflation-adjusted; it covered building and operating the module.
+export const HABITAT_MODULE_PRICE_USD = 17.8e6
+
+// Source: KRUSTY Kilopower test, NASA and NNSA, "less than $20 million" (GeekWire, May 2018),
+// https://www.geekwire.com/2018/kilopower-project-nuclear-reactor-space/
+// ASSUMPTION: a ground test unit's cost stands in for a flight reactor's price; 2015–2018 dollars.
+export const POWER_PLANT_PRICE_USD = 20e6
+
+// Source: Boeing's Lunar Roving Vehicle contract, final cost $38 million for four rovers (NASA NSSDC, "The Apollo
+// Lunar Roving Vehicle"), https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo_lrv.html
+// ASSUMPTION: a quarter of it per rover, in 1971 dollars, not inflation-adjusted.
+export const ROVER_PRICE_USD = 38e6 / 4
+
+// ASSUMPTION: needed-by dates are planning rules, not sourced: the habitat and power plant must be down
+// before the crew lands (day 0); the rover by the end of month 3, when work away from the base would start.
+// Masses: the two constants above, and KILOPOWER_10KWE_MASS_KG for the 10 kW reactor.
+export const EQUIPMENT: Record<EquipmentKey, EquipmentSpec> = {
+  habitat: {
+    label: 'Habitat module',
+    massKg: HABITAT_MODULE_MASS_KG,
+    neededByDay: 0,
+    readiness: 'flightProven',
+    priceUsd: HABITAT_MODULE_PRICE_USD,
+  },
+  power: {
+    label: 'Power plant (10 kW reactor)',
+    massKg: KILOPOWER_10KWE_MASS_KG,
+    neededByDay: 0,
+    readiness: KILOPOWER_READINESS,
+    priceUsd: POWER_PLANT_PRICE_USD,
+  },
+  rover: {
+    label: 'Rover',
+    massKg: ROVER_MASS_KG,
+    neededByDay: 91,
+    readiness: 'flightProven',
+    priceUsd: ROVER_PRICE_USD,
+  },
+}
 
 // ---------- Sources list (for the pitch deck and an in-app credits panel) ----------
 
@@ -599,6 +701,14 @@ export const SOURCES: readonly { title: string; url: string }[] = [
   {
     title: 'NASA Mars Fact Sheet',
     url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html',
+  },
+  {
+    title: 'NASA: SpaceX CRS-8 mission overview (BEAM, 1,413 kg)',
+    url: 'https://en.wikipedia.org/wiki/Bigelow_Expandable_Activity_Module',
+  },
+  {
+    title: 'NASA NSSDC: The Apollo Lunar Roving Vehicle (210 kg)',
+    url: 'https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo_lrv.html',
   },
   {
     title: 'NASA Moon Fact Sheet',

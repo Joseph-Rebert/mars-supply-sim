@@ -72,12 +72,12 @@ export function runBlockedReason(plan: MissionPlan): string | undefined {
   const outside =
     range && plan.flights.find((f) => f.launchDate < range.first || f.launchDate > range.last)
   if (outside) {
-    return `${outside.label} launches ${outside.launchDate}, outside the ${range.first} to ${range.last} transfer table.`
+    return `${outside.label} leaves on ${outside.launchDate}, outside the dates we have flight data for (${range.first} to ${range.last}).`
   }
   const over = plan.flights
     .map((f) => ({ flight: f, cap: flightCapacity(plan, f) }))
     .filter(({ cap }) => cap.overCapacity)
   if (over.length === 0) return undefined
   const names = over.map(({ flight }) => flight.label).join(', ')
-  return `Over its launch-date capacity: ${names}. Move the date or lighten the load.`
+  return `Too heavy for its launch date: ${names}. Pick a better date or take some cargo off.`
 }

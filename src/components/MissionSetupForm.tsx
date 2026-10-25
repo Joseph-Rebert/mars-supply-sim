@@ -3,7 +3,6 @@ import {
   DESTINATION_PROFILES,
   O2_SOURCE_READINESS,
   WATER_RECOVERY_RATE_ISS_2023,
-  WATER_RECOVERY_RATE_ISS_PRE_BPA,
 } from '../lib/data'
 import {
   CREW_MAX,
@@ -33,14 +32,14 @@ const RECOVERY_PCT = { min: 70, max: 98 }
 const GREENHOUSE_M2 = { min: 0, max: 200, step: 5 }
 
 const READINESS_LABEL: Record<ReadinessTier, string> = {
-  flightProven: 'flight-proven',
-  demonstrated: 'demonstrated',
-  concept: 'concept',
+  flightProven: 'already used in space',
+  demonstrated: 'tested, not yet used on a mission',
+  concept: 'still an idea',
 }
 
 function resupplyLabel(destination: Destination): string {
   const days = resupplyCadenceDays(destination)
-  return days === null ? 'any day' : `every ~${Math.round(days / DAYS_PER_MONTH)} mo`
+  return days === null ? 'any day' : `about every ${Math.round(days / DAYS_PER_MONTH)} months`
 }
 
 function o2SourceHint(source: O2Source, destination: Destination): string {
@@ -48,7 +47,8 @@ function o2SourceHint(source: O2Source, destination: Destination): string {
     const { isruLabel, isruReadiness } = DESTINATION_PROFILES[destination]
     return `${isruLabel} · ${READINESS_LABEL[isruReadiness]}`
   }
-  const what = source === 'electrolysis' ? 'Splits recycled water' : 'Shipped from Earth'
+  const what =
+    source === 'electrolysis' ? 'Splits recycled water into oxygen' : 'Sent from Earth in tanks'
   return `${what} · ${READINESS_LABEL[O2_SOURCE_READINESS[source]]}`
 }
 
@@ -148,13 +148,13 @@ export function MissionSetupForm({ plan, onChange, onRun, runBlockedReason }: Pr
         onChange={(destination) => onChange(withDestination(plan, destination))}
       />
       <div className="readouts">
-        <Readout label="Comms delay" value={commsDelayLabel(plan.destination)} />
-        <Readout label="Resupply" value={resupplyLabel(plan.destination)} />
+        <Readout label="Message delay to Earth" value={commsDelayLabel(plan.destination)} />
+        <Readout label="Rockets can leave" value={resupplyLabel(plan.destination)} />
       </div>
 
       <Slider
         label="Crew"
-        display={String(plan.crew.length).padStart(2, '0')}
+        display={`${plan.crew.length} people`}
         value={plan.crew.length}
         min={CREW_MIN}
         max={CREW_MAX}
@@ -162,33 +162,31 @@ export function MissionSetupForm({ plan, onChange, onRun, runBlockedReason }: Pr
       />
       <Slider
         label="Duration"
-        display={`${months} mo · ${plan.durationDays} d`}
+        display={`${months} months`}
         value={months}
         min={DURATION_MONTHS.min}
         max={DURATION_MONTHS.max}
         onChange={(m) => onChange({ ...plan, durationDays: monthsToDays(m) })}
       />
       <Slider
-        label="Water recovery"
-        display={`${recoveryPct} %`}
+        label="Water recycled"
+        display={`${recoveryPct}%`}
         value={recoveryPct}
         min={RECOVERY_PCT.min}
         max={RECOVERY_PCT.max}
-        hint={`ISS: ${Math.round(WATER_RECOVERY_RATE_ISS_PRE_BPA * 100)} % → ${Math.round(
-          WATER_RECOVERY_RATE_ISS_2023 * 100,
-        )} % (2023)`}
+        hint={`The space station recycles ${Math.round(WATER_RECOVERY_RATE_ISS_2023 * 100)}% (since 2023)`}
         onChange={(pct) => setLifeSupport({ waterRecoveryRate: pct / 100 })}
       />
 
       <div className="field">
         <Segmented<O2Source>
-          legend="O₂ source"
+          legend="Where oxygen comes from"
           name="o2Source"
           value={lifeSupport.o2Source}
           options={[
-            { value: 'electrolysis', label: 'Electrolysis' },
-            { value: 'isru', label: 'ISRU' },
-            { value: 'tanks', label: 'Tanks' },
+            { value: 'electrolysis', label: 'Made from water' },
+            { value: 'isru', label: 'Made on site' },
+            { value: 'tanks', label: 'Shipped in tanks' },
           ]}
           onChange={(o2Source) => setLifeSupport({ o2Source })}
         />

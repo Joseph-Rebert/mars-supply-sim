@@ -12,9 +12,18 @@ export function resourceColors(): Record<ResourceKey, string> {
   return colors
 }
 
+export const RESOURCE_UNITS: Record<ResourceKey, string> = {
+  o2: 'kg',
+  water: 'kg',
+  food: 'kg',
+  spares: 'parts',
+  fuel: 'kg',
+}
+
 export const RESOURCE_LABELS: Record<ResourceKey, string> = {
-  o2: 'O₂',
+  o2: 'Oxygen',
   water: 'Water',
   food: 'Food',
-  spares: 'Spares',
+  spares: 'Spare parts',
+  fuel: 'Rover fuel',
 }

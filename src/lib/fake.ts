@@ -6,6 +6,7 @@
 
 import { DESTINATION_PROFILES } from './data'
 import { addDays, daysBetween } from './dates'
+import { fuelStock } from './fuel'
 import { mulberry32, type Rng } from './rng'
 import {
   COMPONENT_KEYS,
@@ -90,6 +91,10 @@ export function fakePlan(): MissionPlan {
         consumablesKg: { o2: 600, water: 4700, food: 0 },
         // 5 recycler spares ≈ 57% survival; 10 lifts it above 90% (the demo's "apply fix").
         spares: { waterRecycler: 5, o2Generator: 3, co2Scrubber: 3, greenhouse: 0 },
+        // The base itself has to be down before the crew: 2.95 t, leaving room for the fix's spares.
+        equipment: ['habitat', 'power'],
+        // Rover fuel for the whole stay with Cargo lander 2's: 2,000 kg against ≈ 1,850 kg burned.
+        fuelKg: 800,
       },
       {
         id: 'f2',
@@ -97,6 +102,8 @@ export function fakePlan(): MissionPlan {
         launchDate: '2028-12-18',
         consumablesKg: { o2: 300, water: 0, food: 6700 },
         spares: { waterRecycler: 0, o2Generator: 0, co2Scrubber: 0, greenhouse: 0 },
+        equipment: ['rover'],
+        fuelKg: 1200,
       },
       {
         id: 'f3',
@@ -196,6 +203,9 @@ export function fakeResult(plan: MissionPlan = fakePlan(), seed = 1, runs = 1000
     (d) => deliveredBy(arrivals, spareCounts, d) - d / 120,
     (d) => 0.6 * Math.sqrt(d / 30),
   )
+  // Rover fuel is the same in every run: the plan's own series, three times.
+  const fuel = fuelStock(plan)
+  bands.fuel = { p10: fuel, p50: fuel, p90: fuel }
 
   const failures = fakeFailures(rng, Math.round(runs * 0.38))
 
