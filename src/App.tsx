@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AssumptionsDrawer } from './components/AssumptionsDrawer'
-import { CrewRoster } from './components/CrewRoster'
 import { fmt } from './components/format'
 import { MissionSetupForm } from './components/MissionSetupForm'
 import { MissionPicker, type MissionSelection, type SavedMission } from './components/MissionPicker'
@@ -21,8 +20,8 @@ import { orderSchedule, pipeline, SAFETY_STOCK_DAYS_DEFAULT } from './lib/supply
 import { launchWindows, transferFor } from './lib/transfers'
 import type { MissionPlan, SimResult } from './lib/types'
 
-// One page: the verdict, the trip, and the supplies over time, then cargo, crew and setup further
-// down, with the key numbers in a strip along the bottom. A new mission comes from the wizard.
+// One page: the best fix, the trip, and the supplies over time, then shipments, costs and setup
+// further down, with the key numbers in a strip along the bottom. A new mission comes from the wizard.
 // App state: the plan being edited, and the last run (with the plan that produced it, so the results
 // never silently describe a different plan). The best fix is searched in a worker after each run.
 
@@ -269,13 +268,6 @@ function App() {
             Cost breakdown
           </h2>
           <SupplyCostTable plan={plan} />
-        </section>
-
-        <section id="crew" className="sc-page-section" aria-labelledby="crew-title">
-          <h2 id="crew-title" className="sc-h2">
-            Crew
-          </h2>
-          <CrewRoster plan={plan} onChange={editPlan} result={run.result} resultPlan={run.plan} />
         </section>
 
         <section id="setup" className="sc-page-section setup-panel" aria-labelledby="setup-title">
