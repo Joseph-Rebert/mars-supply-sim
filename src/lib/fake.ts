@@ -25,7 +25,7 @@ const PLACEHOLDER_SPARE_MASS_KG = 50
 
 export function fakePlan(): MissionPlan {
   return {
-    name: 'Mars Base: Draft Plan',
+    name: 'Ares Base: Draft Plan',
     destination: 'mars',
     startDate: '2029-09-01',
     durationDays: 900,

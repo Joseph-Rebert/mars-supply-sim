@@ -32,7 +32,7 @@ function revisedPlan(): MissionPlan {
   const draft = draftPlan()
   return {
     ...draft,
-    name: 'Mars Base: Revised',
+    name: 'Ares Base: Revised',
     flights: draft.flights.map((f) => {
       if (f.id === 'f1')
         return { ...f, spares: { ...f.spares, waterRecycler: f.spares.waterRecycler + 5 } }
@@ -85,13 +85,13 @@ function moonPlan(): MissionPlan {
 export const PRESETS: readonly Preset[] = [
   {
     id: 'draft',
-    label: 'Mars Base: Draft Plan',
+    label: 'Ares Base: Draft Plan',
     summary: 'Looks reasonable on paper; water recycler spares run out.',
     plan: draftPlan,
   },
   {
     id: 'revised',
-    label: 'Mars Base: Revised',
+    label: 'Ares Base: Revised',
     summary: 'The suggested fix applied: recycler spares ship in the earlier window.',
     plan: revisedPlan,
   },
