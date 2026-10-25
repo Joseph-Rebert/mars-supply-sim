@@ -254,13 +254,7 @@ function App() {
           <h2 id="shipments-title" className="sc-h2">
             Shipments
           </h2>
-          <ShipmentsView
-            plan={plan}
-            runSlots={supply.slots}
-            leadDays={leadDays}
-            highlight={null}
-            onChange={editPlan}
-          />
+          <ShipmentsView plan={plan} runSlots={supply.slots} onChange={editPlan} />
         </section>
 
         <section id="costs" className="sc-page-section" aria-labelledby="costs-title">

@@ -2320,23 +2320,17 @@ p {
 
 .sc-ship-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
   align-items: start;
 }
 
 .sc-rocket {
   display: grid;
-  gap: 10px;
-  padding: 14px 16px;
-  border: 1px solid var(--rule-strong);
-  border-top: 2px solid var(--ink);
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid var(--rule);
   min-width: 0;
-}
-
-.sc-rocket.is-marked {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 .sc-rocket.is-empty {
@@ -2363,20 +2357,28 @@ p {
 }
 
 .sc-rocket-when {
-  font-size: 15px;
-  line-height: 1.45;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
-.sc-rocket-note {
+/* A short status chip; the full reason is in its title. */
+.sc-tag {
+  margin-left: auto;
+  padding: 1px 8px;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--tone);
-  font-weight: 500;
+  border: 1px solid var(--tone);
 }
 
 .sc-room {
   display: flex;
-  height: 14px;
+  height: 6px;
   background: var(--bg-raised);
-  border: 1px solid var(--rule-strong);
   overflow: hidden;
 }
 
@@ -2397,13 +2399,13 @@ p {
   grid-template-columns: 12px minmax(0, 1fr) auto;
   align-items: baseline;
   gap: 8px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--rule);
-  font-size: 15px;
+  padding: 3px 0;
+  font-size: 14px;
 }
 
 .sc-manifest-amount {
-  font-size: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .sc-swatch {
@@ -2438,10 +2440,7 @@ p {
 
 .sc-rocket-foot {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  justify-content: flex-end;
 }
 
 .sc-rocket .sc-editor {
